@@ -216,7 +216,6 @@ app.get('/qr', async (req, res) => {
             qr: qrData
         }
     });
-});
 app.get('/test', (req, res) => {
     res.send('TEST BERHASIL');
 });
