@@ -208,6 +208,18 @@ async function startBot() {
         qr
     );
 }
+app.get('/qr', async (req, res) => {
+
+    return res.json({
+        success: true,
+        data: {
+            qr: qrData
+        }
+    });
+});
+app.get('/test', (req, res) => {
+    res.send('TEST BERHASIL');
+});
 app.get('/qrraw', (req, res) => {
 
     try {
