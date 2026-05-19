@@ -164,6 +164,16 @@ function loadExcelData(filePath) {
 | START BOT
 |--------------------------------------------------------------------------
 */
+app.get('/reset-session', (req, res) => {
+    const fs = require('fs');
+
+    fs.rmSync('./sessions2', {
+        recursive: true,
+        force: true
+    });
+
+    return res.send('SESSION RESET OK');
+});
 
 async function startBot() {
 
@@ -250,14 +260,6 @@ app.get('/qrraw', (req, res) => {
     }, 5000);
 }
     });
-app.get('/reset-session', (req, res) => {
-    fs.rmSync('./sessions2', {
-        recursive: true,
-        force: true
-    });
-
-    return res.send('SESSION RESET DONE');
-});
     /*
     |--------------------------------------------------------------------------
     | MESSAGE HANDLER
