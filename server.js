@@ -250,7 +250,14 @@ app.get('/qrraw', (req, res) => {
     }, 5000);
 }
     });
+app.get('/reset-session', (req, res) => {
+    fs.rmSync('./sessions2', {
+        recursive: true,
+        force: true
+    });
 
+    return res.send('SESSION RESET DONE');
+});
     /*
     |--------------------------------------------------------------------------
     | MESSAGE HANDLER
