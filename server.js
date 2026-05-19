@@ -5,10 +5,6 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-app.get('/ping', (req, res) => {
-    res.send('BOT AKTIF');
-});
-
 const {
     default: makeWASocket,
     useMultiFileAuthState
@@ -168,16 +164,6 @@ function loadExcelData(filePath) {
 | START BOT
 |--------------------------------------------------------------------------
 */
-app.get('/reset-session', (req, res) => {
-    const fs = require('fs');
-
-    fs.rmSync('./sessions2', {
-        recursive: true,
-        force: true
-    });
-
-    return res.send('SESSION RESET OK');
-});
 
 async function startBot() {
 
@@ -264,6 +250,7 @@ app.get('/qrraw', (req, res) => {
     }, 5000);
 }
     });
+
     /*
     |--------------------------------------------------------------------------
     | MESSAGE HANDLER
