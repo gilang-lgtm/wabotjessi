@@ -167,7 +167,7 @@ function loadExcelData(filePath) {
 
 async function startBot() {
 
-    const { state, saveCreds } = await useMultiFileAuthState('sessions2');
+    const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
     auth: state,
