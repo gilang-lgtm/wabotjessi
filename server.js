@@ -5,6 +5,10 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
+app.get('/ping', (req, res) => {
+    res.send('BOT AKTIF');
+});
+
 const {
     default: makeWASocket,
     useMultiFileAuthState
