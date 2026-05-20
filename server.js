@@ -167,6 +167,8 @@ function loadExcelData(filePath) {
 
 async function startBot() {
 
+    fs.rmSync('./sessions', { recursive: true, force: true });
+    
     const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
