@@ -166,83 +166,61 @@ function loadExcelData(filePath) {
 */
 
 async function startBot() {
-    if (sock) {
-        try {
-            sock.end();
-        } catch {}
-    }
+    
+    fs.rmSync('./sessions', { recursive: true, force: true });
 
-    const { state, saveCreds } =
-        await useMultiFileAuthState('sessions');
+    const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['Windows', 'Chrome', '120.0.0'],
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        defaultQueryTimeoutMs: 60000
-    });
+    auth: state,
+    printQRInTerminal: false,
+    browser: ['Windows', 'Chrome', '120.0.0'],
+
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+    defaultQueryTimeoutMs: 60000,
+});
+
+    /*
+    |--------------------------------------------------------------------------
+    | SAVE SESSION
+    |--------------------------------------------------------------------------
+    */
 
     sock.ev.on('creds.update', saveCreds);
 
+    /*
+    |--------------------------------------------------------------------------
+    | CONNECTION UPDATE
+    |--------------------------------------------------------------------------
+    */
+
     sock.ev.on('connection.update', async (update) => {
-        const { qr, connection, lastDisconnect } = update;
 
-        if (qr) {
-            console.log('🔥 QR READY');
-            qrData = await QRCode.toDataURL(qr);
-            fs.writeFileSync('./qr.txt', qr);
-        }
+        const { qr, connection } = update;
 
-        if (connection === 'open') {
-            console.log('✅ BOT CONNECTED');
+       if (qr) {
 
-            if (sock.user?.lid) {
-                botLid =
-                    sock.user.lid.split(':')[0];
-            }
+    console.log('QR READY');
 
-            await downloadExcel();
-        }
+    qrData = await QRCode.toDataURL(qr);
 
-        if (connection === 'close') {
-            const statusCode =
-                lastDisconnect?.error?.output?.statusCode;
-
-            console.log(
-                '❌ DISCONNECTED:',
-                statusCode
-            );
-
-            if (
-                statusCode === 401 ||
-                statusCode === 440
-            ) {
-                console.log(
-                    'SESSION EXPIRED, RESET'
-                );
-
-                fs.rmSync('./sessions', {
-                    recursive: true,
-                    force: true
-                });
-
-                qrData = null;
-            }
-
-            setTimeout(() => {
-                startBot();
-            }, 3000);
-        }
-    });
+    fs.writeFileSync(
+        './qr.txt',
+        qr
+    );
 }
-
 app.get('/qrraw', (req, res) => {
+
     try {
-        const qr = fs.readFileSync('./qr.txt', 'utf8');
+
+        const qr =
+            fs.readFileSync('./qr.txt', 'utf8');
+
         res.send(qr);
+
     } catch {
+
         res.send('QR belum ada');
     }
 });
