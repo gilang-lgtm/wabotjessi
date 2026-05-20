@@ -166,77 +166,77 @@ function loadExcelData(filePath) {
 */
 
 async function startBot() {
-    
-    const { state, saveCreds } = await useMultiFileAuthState('sessions');
+    if (sock) {
+        try {
+            sock.end();
+        } catch {}
+    }
+
+    const { state, saveCreds } =
+        await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    browser: ['Windows', 'Chrome', '120.0.0'],
-
-    connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 30000,
-    defaultQueryTimeoutMs: 60000,
-});
-
-    /*
-    |--------------------------------------------------------------------------
-    | SAVE SESSION
-    |--------------------------------------------------------------------------
-    */
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['Windows', 'Chrome', '120.0.0'],
+        connectTimeoutMs: 60000,
+        keepAliveIntervalMs: 30000,
+        defaultQueryTimeoutMs: 60000
+    });
 
     sock.ev.on('creds.update', saveCreds);
 
-    /*
-    |--------------------------------------------------------------------------
-    | CONNECTION UPDATE
-    |--------------------------------------------------------------------------
-    */
-
     sock.ev.on('connection.update', async (update) => {
-    const { qr, connection, lastDisconnect } = update;
+        const { qr, connection, lastDisconnect } = update;
 
-    // QR muncul
-    if (qr) {
-        console.log('🔥 QR READY');
+        if (qr) {
+            console.log('🔥 QR READY');
+            qrData = await QRCode.toDataURL(qr);
+            fs.writeFileSync('./qr.txt', qr);
+        }
 
-        qrData = await QRCode.toDataURL(qr);
+        if (connection === 'open') {
+            console.log('✅ BOT CONNECTED');
 
-        fs.writeFileSync('./qr.txt', qr);
-    }
+            if (sock.user?.lid) {
+                botLid =
+                    sock.user.lid.split(':')[0];
+            }
 
-    // bot connect
-    if (connection === 'open') {
-        console.log('✅ BOT CONNECTED');
-    }
+            await downloadExcel();
+        }
 
-    // bot disconnect
-    if (connection === 'close') {
-        const statusCode =
-            lastDisconnect?.error?.output?.statusCode;
+        if (connection === 'close') {
+            const statusCode =
+                lastDisconnect?.error?.output?.statusCode;
 
-        console.log('❌ DISCONNECTED:', statusCode);
+            console.log(
+                '❌ DISCONNECTED:',
+                statusCode
+            );
 
-        // kalau logout / auth invalid
-        if (statusCode === 401 || statusCode === 440) {
-            console.log('RESET SESSION');
+            if (
+                statusCode === 401 ||
+                statusCode === 440
+            ) {
+                console.log(
+                    'SESSION EXPIRED, RESET'
+                );
 
-            try {
                 fs.rmSync('./sessions', {
                     recursive: true,
                     force: true
                 });
-            } catch (e) {
-                console.log('SESSION SKIP:', e.message);
-            }
-        }
 
-        // restart bot
-        setTimeout(() => {
-            startBot();
-        }, 3000);
-    }
-});
+                qrData = null;
+            }
+
+            setTimeout(() => {
+                startBot();
+            }, 3000);
+        }
+    });
+}
 
 app.get('/qrraw', (req, res) => {
     try {
