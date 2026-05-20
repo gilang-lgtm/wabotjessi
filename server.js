@@ -193,20 +193,26 @@ async function startBot() {
     |--------------------------------------------------------------------------
     */
 
-    sock.ev.on('connection.update', async (update) => {
+    sock.ev.on('connection.update', (update) => {
+    const { qr, connection } = update;
 
-        const { qr, connection } = update;
+    console.log("STATUS:", connection);
 
-       if (qr) {
+    if (qr) {
+        console.log("🔥 QR DAPET");
+        qrData = qr;
+        fs.writeFileSync('./qr.txt', qr);
+    }
 
-    console.log('QR READY');
+    if (connection === 'open') {
+        console.log("✅ CONNECTED");
+    }
 
-    qrData = await QRCode.toDataURL(qr);
-
-    fs.writeFileSync(
-        './qr.txt',
-        qr
-    );
+    if (connection === 'close') {
+        console.log("❌ RESTART");
+        setTimeout(startBot, 3000);
+    }
+});
 }
 app.get('/qrraw', (req, res) => {
 
