@@ -166,9 +166,7 @@ function loadExcelData(filePath) {
 */
 
 async function startBot() {
-     if (process.env.RESET_SESSION === 'true') {
-        fs.rmSync('./sessions2', { recursive: true, force: true });
-    }
+
     const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
@@ -195,26 +193,20 @@ async function startBot() {
     |--------------------------------------------------------------------------
     */
 
-  sock.ev.on('connection.update',async (update) => {
-    const { connection, qr } = update;
+    sock.ev.on('connection.update', async (update) => {
 
-    console.log("CONNECTION:", connection);
+        const { qr, connection } = update;
 
-    if (qr) {
-        console.log("🔥 QR GENERATED");
-        qrData = qr;
-    }
+       if (qr) {
 
-    if (connection === 'open') {
-        console.log("✅ BOT CONNECTED");
-    }
+    console.log('QR READY');
 
-    if (connection === 'close') {
-        console.log("❌ BOT CLOSED");
-        setTimeout(() => startBot(), 3000);
-    }
-});
+    qrData = await QRCode.toDataURL(qr);
 
+    fs.writeFileSync(
+        './qr.txt',
+        qr
+    );
 }
 app.get('/qrraw', (req, res) => {
 
