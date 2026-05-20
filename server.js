@@ -164,6 +164,14 @@ function loadExcelData(filePath) {
 | START BOT
 |--------------------------------------------------------------------------
 */
+const fs = require('fs');
+
+try {
+    fs.rmSync('./sessions', { recursive: true, force: true });
+    console.log('SESSION CLEARED');
+} catch (e) {
+    console.log('NO SESSION FOLDER / ALREADY CLEAN');
+}
 
 async function startBot() {
 
