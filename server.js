@@ -200,21 +200,19 @@ async function startBot() {
     |--------------------------------------------------------------------------
     */
 
-    sock.ev.on('connection.update', async (update) => {
+    sock.ev.on('connection.update', (update) => {
+    console.log("UPDATE MASUK:", update);
 
-        const { qr, connection } = update;
+    const { qr, connection } = update;
 
-       if (qr) {
+    if (qr) {
+        console.log("🔥 QR MUNCUL");
+        qrData = qr;
+        fs.writeFileSync('./qr.txt', qr);
+    }
 
-    console.log('QR READY');
-
-    qrData = await QRCode.toDataURL(qr);
-
-    fs.writeFileSync(
-        './qr.txt',
-        qr
-    );
-}
+    console.log("STATUS:", connection);
+        
 app.get('/qrraw', (req, res) => {
 
     try {
