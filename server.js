@@ -195,15 +195,24 @@ async function startBot() {
     |--------------------------------------------------------------------------
     */
 
-   sock.ev.on('connection.update', (update) => {
-    const { qr, connection } = update;
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
+
+    console.log("CONNECTION:", connection);
 
     if (qr) {
         console.log("🔥 QR GENERATED");
         qrData = qr;
     }
 
-    console.log("CONNECTION:", connection);
+    if (connection === 'open') {
+        console.log("✅ BOT CONNECTED");
+    }
+
+    if (connection === 'close') {
+        console.log("❌ BOT CLOSED");
+        setTimeout(() => startBot(), 3000);
+    }
 });
 
 }
