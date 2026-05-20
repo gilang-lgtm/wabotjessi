@@ -194,48 +194,55 @@ async function startBot() {
     */
 
     sock.ev.on('connection.update', async (update) => {
+    const { qr, connection, lastDisconnect } = update;
 
-        const { qr, connection } = update;
-if (statusCode === 401 || statusCode === 440) {
+    // QR muncul
+    if (qr) {
+        console.log('🔥 QR READY');
+
+        qrData = await QRCode.toDataURL(qr);
+
+        fs.writeFileSync('./qr.txt', qr);
+    }
+
+    // bot connect
+    if (connection === 'open') {
+        console.log('✅ BOT CONNECTED');
+    }
+
+    // bot disconnect
+    if (connection === 'close') {
+        const statusCode =
+            lastDisconnect?.error?.output?.statusCode;
+
+        console.log('❌ DISCONNECTED:', statusCode);
+
+        // kalau logout / auth invalid
+        if (statusCode === 401 || statusCode === 440) {
+            console.log('RESET SESSION');
+
             try {
                 fs.rmSync('./sessions', {
                     recursive: true,
                     force: true
                 });
-                console.log('SESSION RESET');
             } catch (e) {
                 console.log('SESSION SKIP:', e.message);
             }
-
-            // start ulang bot → bikin QR baru
-            setTimeout(() => startBot(), 2000);
-        } else {
-            // putus internet / reconnect biasa
-            setTimeout(() => startBot(), 2000);
         }
+
+        // restart bot
+        setTimeout(() => {
+            startBot();
+        }, 3000);
     }
-       if (qr) {
+});
 
-    console.log('QR READY');
-
-    qrData = await QRCode.toDataURL(qr);
-
-    fs.writeFileSync(
-        './qr.txt',
-        qr
-    );
-}
 app.get('/qrraw', (req, res) => {
-
     try {
-
-        const qr =
-            fs.readFileSync('./qr.txt', 'utf8');
-
+        const qr = fs.readFileSync('./qr.txt', 'utf8');
         res.send(qr);
-
     } catch {
-
         res.send('QR belum ada');
     }
 });
