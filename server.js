@@ -195,20 +195,17 @@ async function startBot() {
     |--------------------------------------------------------------------------
     */
 
-    sock.ev.on('connection.update', async (update) => {
+   sock.ev.on('connection.update', (update) => {
+    const { qr, connection } = update;
 
-        const { qr, connection } = update;
+    if (qr) {
+        console.log("🔥 QR GENERATED");
+        qrData = qr;
+    }
 
-       if (qr) {
+    console.log("CONNECTION:", connection);
+});
 
-    console.log('QR READY');
-
-    qrData = await QRCode.toDataURL(qr);
-
-    fs.writeFileSync(
-        './qr.txt',
-        qr
-    );
 }
 app.get('/qrraw', (req, res) => {
 
