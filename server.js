@@ -213,21 +213,6 @@ async function startBot() {
         setTimeout(startBot, 3000);
     }
 });
-}
-app.get('/qrraw', (req, res) => {
-
-    try {
-
-        const qr =
-            fs.readFileSync('./qr.txt', 'utf8');
-
-        res.send(qr);
-
-    } catch {
-
-        res.send('QR belum ada');
-    }
-});
 
         if (connection === 'open') {
 
