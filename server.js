@@ -196,7 +196,24 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
 
         const { qr, connection } = update;
+if (statusCode === 401 || statusCode === 440) {
+            try {
+                fs.rmSync('./sessions', {
+                    recursive: true,
+                    force: true
+                });
+                console.log('SESSION RESET');
+            } catch (e) {
+                console.log('SESSION SKIP:', e.message);
+            }
 
+            // start ulang bot → bikin QR baru
+            setTimeout(() => startBot(), 2000);
+        } else {
+            // putus internet / reconnect biasa
+            setTimeout(() => startBot(), 2000);
+        }
+    }
        if (qr) {
 
     console.log('QR READY');
