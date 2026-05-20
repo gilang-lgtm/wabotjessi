@@ -164,7 +164,6 @@ function loadExcelData(filePath) {
 | START BOT
 |--------------------------------------------------------------------------
 */
-const fs = require('fs');
 
 try {
     fs.rmSync('./sessions', { recursive: true, force: true });
