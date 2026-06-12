@@ -23,8 +23,7 @@ let botLid = null;
 |--------------------------------------------------------------------------
 */
 
-const LATEST_URL =
-'https://wabot256.my.id/wabot/public/uploads/latest.txt';
+const LATEST_URL = 'https://wabot256.my.id/api/latest-file';
 const LOCAL_EXCEL_PATH =
     path.join(__dirname, 'temp-' + Date.now() + '.xlsx');
 /*
