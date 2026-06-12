@@ -55,7 +55,7 @@ async function downloadExcel() {
         console.log('FILE:', latestFile);
 
         console.log('DOWNLOAD URL:',
-'https://wabot256.my.id/wabot/public/uploads/' + latestFile);
+'https://wabot256.my.id/wabot/public/uploads/latest.txt);
         /*
         |--------------------------------------------------------------------------
         | DOWNLOAD FILE EXCEL
