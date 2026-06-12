@@ -49,8 +49,7 @@ async function downloadExcel() {
             LATEST_URL + '?t=' + Date.now()
         );
 
-        const latestFile =
-            latestResponse.data.trim();
+const latestFile = String(latestResponse.data).trim();
 
         console.log('FILE:', latestFile);
 
