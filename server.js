@@ -47,6 +47,8 @@ async function downloadExcel() {
 
        const latestResponse = await axios.get(
     LATEST_URL + '?t=' + Date.now(),
+           { responseType: 'text' } 
+           
 );
 console.log('TYPE:', typeof latestResponse.data);  // ← tambah ini
 console.log('DATA:', latestResponse.data);     
