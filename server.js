@@ -167,33 +167,41 @@ async function sendWithRetry(from, message, options = {}, retry = 5) {
 
         try {
 
-            if (!isConnected || !sock) {
+            while (!isConnected || !sock) {
 
-                console.log(`Socket belum connect, tunggu... (${i}/${retry})`);
+                console.log("Menunggu reconnect...");
 
-                await new Promise(r => setTimeout(r, 3000));
+                await new Promise(r => setTimeout(r, 2000));
 
-                continue;
             }
 
-            return await sendWithRetry(
-                from,
-                message,
-                options
-            );
+            return await Promise.race([
+
+                sock.sendMessage(
+                    from,
+                    message,
+                    options
+                ),
+
+                new Promise((_, reject) =>
+                    setTimeout(() =>
+                        reject(new Error("Send Timeout")),
+                    15000)
+                )
+
+            ]);
 
         } catch (err) {
 
-            console.log(
-                `Gagal kirim (${i}/${retry})`,
-                err.message
-            );
+            console.log(`Retry ${i}/${retry}`, err.message);
 
             await new Promise(r => setTimeout(r, 3000));
+
         }
+
     }
 
-    console.log("Pesan gagal dikirim setelah retry.");
+    throw new Error("Gagal mengirim pesan");
 }
 /*
 |--------------------------------------------------------------------------
