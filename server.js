@@ -161,48 +161,6 @@ function loadExcelData(filePath) {
     return allData;
 }
 
-async function sendWithRetry(from, message, options = {}, retry = 5) {
-
-    for (let i = 1; i <= retry; i++) {
-
-        try {
-
-            while (!isConnected || !sock) {
-
-                console.log("Menunggu reconnect...");
-
-                await new Promise(r => setTimeout(r, 2000));
-
-            }
-
-            return await Promise.race([
-
-                sock.sendMessage(
-                    from,
-                    message,
-                    options
-                ),
-
-                new Promise((_, reject) =>
-                    setTimeout(() =>
-                        reject(new Error("Send Timeout")),
-                    15000)
-                )
-
-            ]);
-
-        } catch (err) {
-
-            console.log(`Retry ${i}/${retry}`, err.message);
-
-            await new Promise(r => setTimeout(r, 3000));
-
-        }
-
-    }
-
-    throw new Error("Gagal mengirim pesan");
-}
 /*
 |--------------------------------------------------------------------------
 | START BOT
@@ -406,7 +364,7 @@ if (!isBotMentioned) return;
 
             if (splitText.length < 2) {
 
-                await sendWithRetry(from, {
+                await sock.sendMessage(from, {
                     text:
 `iyaa, mau tanya apaaa?
 
@@ -456,7 +414,7 @@ Contoh perintah:
 
 if (!latestExcel) {
 
-    await sendWithRetry(from, {
+    await sock.sendMessage(from, {
         text:
             'File Excel terbaru gagal diambil 😭'
     } ,{ quoted: msg });
@@ -469,7 +427,7 @@ const dataExcel =
 
 if (!dataExcel || dataExcel.length === 0) {
 
-    await sendWithRetry(from, {
+    await sock.sendMessage(from, {
         text:
             'Data Excel kosong 😭'
     } ,{ quoted: msg });
@@ -513,7 +471,7 @@ const inputSku = cleanSku(skuPart);
 
             if (!laptop) {
 
-    await sendWithRetry(from, {
+    await sock.sendMessage(from, {
         text: `SKU ${skuPart} tidak ditemukan 😭`
     } ,{ quoted: msg });
 
@@ -531,7 +489,7 @@ if (
     status.includes('not ready')
 ) {
 
-    await sendWithRetry(from, {
+    await sock.sendMessage(from, {
         text:
 `❌ SKU ${skuPart} sudah ${status.toUpperCase()} ❌`
     } ,{ quoted: msg });
@@ -588,7 +546,7 @@ else if (jenisHarga === 'harga nett toko') {
 
             else {
 
-                await sendWithRetry(from, {
+                await sock.sendMessage(from, {
                     text:
 `Jenis harga tidak valid 😭
 
@@ -622,7 +580,7 @@ const formatHarga =
             |--------------------------------------------------------------------------
             */
 
-            await sendWithRetry(from, {
+            await sock.sendMessage(from, {
                 text:
 `💻 ${laptop['Unit dan Spesifikasi'] || '-'}
 
