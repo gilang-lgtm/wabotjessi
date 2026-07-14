@@ -160,11 +160,47 @@ function loadExcelData(filePath) {
 
     return allData;
 }
+
+async function sendWithRetry(from, message, options = {}, retry = 5) {
+
+    for (let i = 1; i <= retry; i++) {
+
+        try {
+
+            if (!isConnected || !sock) {
+
+                console.log(`Socket belum connect, tunggu... (${i}/${retry})`);
+
+                await new Promise(r => setTimeout(r, 3000));
+
+                continue;
+            }
+
+            return await sendWithRetry(
+                from,
+                message,
+                options
+            );
+
+        } catch (err) {
+
+            console.log(
+                `Gagal kirim (${i}/${retry})`,
+                err.message
+            );
+
+            await new Promise(r => setTimeout(r, 3000));
+        }
+    }
+
+    console.log("Pesan gagal dikirim setelah retry.");
+}
 /*
 |--------------------------------------------------------------------------
 | START BOT
 |--------------------------------------------------------------------------
 */
+let isConnected = false;
 
 async function startBot() {
 
@@ -224,9 +260,11 @@ app.get('/qrraw', (req, res) => {
     }
 });
 
-        if (connection === 'open') {
+       if (connection === 'open') {
 
-            console.log('BOT CONNECTED');
+    isConnected = true;
+
+    console.log('BOT CONNECTED');
             console.log('BOT USER:', JSON.stringify(sock.user));
 
             if (sock.user?.lid) {
@@ -243,6 +281,8 @@ app.get('/qrraw', (req, res) => {
         }
 
        if (connection === 'close') {
+
+    isConnected = false;
 
     console.log('BOT DISCONNECTED');
 
@@ -358,7 +398,7 @@ if (!isBotMentioned) return;
 
             if (splitText.length < 2) {
 
-                await sock.sendMessage(from, {
+                await sendWithRetry(from, {
                     text:
 `iyaa, mau tanya apaaa?
 
@@ -408,7 +448,7 @@ Contoh perintah:
 
 if (!latestExcel) {
 
-    await sock.sendMessage(from, {
+    await sendWithRetry(from, {
         text:
             'File Excel terbaru gagal diambil 😭'
     } ,{ quoted: msg });
@@ -421,7 +461,7 @@ const dataExcel =
 
 if (!dataExcel || dataExcel.length === 0) {
 
-    await sock.sendMessage(from, {
+    await sendWithRetry(from, {
         text:
             'Data Excel kosong 😭'
     } ,{ quoted: msg });
@@ -465,7 +505,7 @@ const inputSku = cleanSku(skuPart);
 
             if (!laptop) {
 
-    await sock.sendMessage(from, {
+    await sendWithRetry(from, {
         text: `SKU ${skuPart} tidak ditemukan 😭`
     } ,{ quoted: msg });
 
@@ -483,7 +523,7 @@ if (
     status.includes('not ready')
 ) {
 
-    await sock.sendMessage(from, {
+    await sendWithRetry(from, {
         text:
 `❌ SKU ${skuPart} sudah ${status.toUpperCase()} ❌`
     } ,{ quoted: msg });
@@ -540,7 +580,7 @@ else if (jenisHarga === 'harga nett toko') {
 
             else {
 
-                await sock.sendMessage(from, {
+                await sendWithRetry(from, {
                     text:
 `Jenis harga tidak valid 😭
 
@@ -574,7 +614,7 @@ const formatHarga =
             |--------------------------------------------------------------------------
             */
 
-            await sock.sendMessage(from, {
+            await sendWithRetry(from, {
                 text:
 `💻 ${laptop['Unit dan Spesifikasi'] || '-'}
 
