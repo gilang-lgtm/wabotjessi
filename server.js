@@ -170,14 +170,13 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    browser: ['Windows', 'Chrome', '120.0.0'],
-
-    connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 30000,
-    defaultQueryTimeoutMs: 60000,
-});
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['Windows', 'Chrome', '120.0.0'],
+        connectTimeoutMs: 60000,
+        keepAliveIntervalMs: 30000,
+        defaultQueryTimeoutMs: 60000,
+    });
 
     /*
     |--------------------------------------------------------------------------
