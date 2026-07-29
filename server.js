@@ -170,93 +170,60 @@ let isConnected = false;
 
 async function startBot() {
 
-    const { state, saveCreds } = await useMultiFileAuthState('sessions');
+    const { state, saveCreds } = await useMultiFileAuthState('./sessions');
 
     sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    browser: ['Windows', 'Chrome', '120.0.0'],
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['Windows', 'Chrome', '120.0.0'],
 
-    connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 30000,
-    defaultQueryTimeoutMs: 60000,
-});
+        connectTimeoutMs: 60000,
+        keepAliveIntervalMs: 30000,
+        defaultQueryTimeoutMs: 60000,
+    });
 
-    /*
-    |--------------------------------------------------------------------------
-    | SAVE SESSION
-    |--------------------------------------------------------------------------
-    */
 
+    // SIMPAN SESSION
     sock.ev.on('creds.update', saveCreds);
 
-    /*
-    |--------------------------------------------------------------------------
-    | CONNECTION UPDATE
-    |--------------------------------------------------------------------------
-    */
 
+    // CONNECTION UPDATE
     sock.ev.on('connection.update', async (update) => {
 
         const { qr, connection } = update;
 
-       if (qr) {
+        if (qr) {
+            console.log('QR READY');
 
-    console.log('QR READY');
+            qrData = await QRCode.toDataURL(qr);
 
-    qrData = await QRCode.toDataURL(qr);
+            fs.writeFileSync('./qr.txt', qr);
+        }
 
-    fs.writeFileSync(
-        './qr.txt',
-        qr
-    );
-}
-app.get('/qrraw', (req, res) => {
 
-    try {
+        if (connection === 'open') {
 
-        const qr =
-            fs.readFileSync('./qr.txt', 'utf8');
+            isConnected = true;
 
-        res.send(qr);
-
-    } catch {
-
-        res.send('QR belum ada');
-    }
-});
-
-       if (connection === 'open') {
-
-    isConnected = true;
-
-    console.log('BOT CONNECTED');
-            console.log('BOT USER:', JSON.stringify(sock.user));
-
-            if (sock.user?.lid) {
-        botLid = sock.user.lid.split(':')[0];
-        console.log('BOT LID:', botLid);
-    }
-            /*
-            |--------------------------------------------------------------------------
-            | DOWNLOAD EXCEL SAAT BOT CONNECT
-            |--------------------------------------------------------------------------
-            */
+            console.log('BOT CONNECTED');
 
             await downloadExcel();
         }
 
-       if (connection === 'close') {
 
-    isConnected = false;
+        if (connection === 'close') {
 
-    console.log('BOT DISCONNECTED');
+            isConnected = false;
 
-    setTimeout(() => {
-        startBot();
-    }, 5000);
-}
+            console.log('BOT DISCONNECTED');
+
+            setTimeout(() => {
+                startBot();
+            }, 5000);
+        }
+
     });
+
 
     /*
     |--------------------------------------------------------------------------
@@ -681,5 +648,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
 
     console.log('Server running on port ' + PORT);
-
 });
