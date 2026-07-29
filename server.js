@@ -263,29 +263,22 @@ async function startBot() {
             |--------------------------------------------------------------------------
             */
 
-           const mentionedJid =
-    msg.message?.extendedTextMessage
-    ?.contextInfo
-    ?.mentionedJid || [];
+           const isBotMentioned = mentionedJid.some(jid => {
 
-
-const botNumber = sock.user?.id
-    ?.split(':')[0];
-
-
-const isBotMentioned = mentionedJid.some(jid => {
-
-    const clean = jid
-        .replace('@s.whatsapp.net','')
+    const cleanMention = jid
         .replace('@lid','')
+        .replace('@s.whatsapp.net','')
         .split(':')[0];
 
 
-    return (
-        clean === botNumber ||
-        clean === botLid
-    );
+    const botNumber = sock.user?.id
+        ?.split(':')[0];
 
+
+    return (
+        cleanMention === botLid ||
+        cleanMention === botNumber
+    );
 });
 
 
