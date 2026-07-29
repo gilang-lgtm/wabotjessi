@@ -263,28 +263,39 @@ async function startBot() {
             |--------------------------------------------------------------------------
             */
 
-            // GANTI BAGIAN INI
-const mentionedJid =
+           const mentionedJid =
     msg.message?.extendedTextMessage
     ?.contextInfo
     ?.mentionedJid || [];
 
-console.log('=== DEBUG ===');
-console.log('BOT JID:', sock.user?.id);
-console.log('BOT LID:', botLid);
-console.log('MENTIONED JID:', mentionedJid);
-console.log('=============');
 
-// Cek apakah bot yang di-tag (support format LID dan JID biasa)
-const botJidClean = sock.user?.id?.split(':')[0];
+const botNumber = sock.user?.id
+    ?.split(':')[0];
+
 
 const isBotMentioned = mentionedJid.some(jid => {
-    const cleanJid = jid.split(':')[0].replace('@lid', '').replace('@s.whatsapp.net', '');
+
+    const clean = jid
+        .replace('@s.whatsapp.net','')
+        .replace('@lid','')
+        .split(':')[0];
+
+
     return (
-        cleanJid === botLid ||
-        cleanJid === botJidClean
+        clean === botNumber ||
+        clean === botLid
     );
+
 });
+
+
+console.log("MENTION CHECK:", {
+    mentionedJid,
+    botNumber,
+    botLid,
+    isBotMentioned
+});
+
 
 if (!isBotMentioned) return;
             /*
