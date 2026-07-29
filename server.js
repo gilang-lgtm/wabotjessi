@@ -203,13 +203,16 @@ async function startBot() {
 
         if (connection === 'open') {
 
-            isConnected = true;
+    isConnected = true;
 
-            console.log('BOT CONNECTED');
+    console.log('BOT CONNECTED');
 
-            await downloadExcel();
-        }
+    console.log(
+        'CREDS ME:',
+        state.creds.me
+    );
 
+}
 
         if (connection === 'close') {
 
@@ -263,7 +266,17 @@ async function startBot() {
             |--------------------------------------------------------------------------
             */
 
-           const isBotMentioned = mentionedJid.some(jid => {
+           const mentionedJid =
+    msg.message?.extendedTextMessage
+    ?.contextInfo
+    ?.mentionedJid || [];
+
+
+const botNumber = sock.user?.id
+    ?.split(':')[0];
+
+
+const isBotMentioned = mentionedJid.some(jid => {
 
     const cleanMention = jid
         .replace('@lid','')
@@ -271,14 +284,10 @@ async function startBot() {
         .split(':')[0];
 
 
-    const botNumber = sock.user?.id
-        ?.split(':')[0];
-
-
     return (
-        cleanMention === botLid ||
         cleanMention === botNumber
     );
+
 });
 
 
@@ -289,13 +298,8 @@ console.log("MENTION CHECK:", {
     isBotMentioned
 });
 
-console.log("IS BOT MENTIONED:", isBotMentioned);
-console.log("BOT LID:", botLid);
-console.log("BOT JID CLEAN:", botJidClean);
-            
+
 if (!isBotMentioned) return;
-            
-console.log("TAG BOT LOLOS");
             /*
             |--------------------------------------------------------------------------
             | HARUS TAG BOT
