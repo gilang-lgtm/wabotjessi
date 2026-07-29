@@ -167,7 +167,17 @@ function loadExcelData(filePath) {
 
 async function startBot() {
 
-    const { state, saveCreds } = await useMultiFileAuthState('sessions');
+    // Hapus session hanya saat aplikasi pertama kali dijalankan
+    if (fs.existsSync('./sessions')) {
+        fs.rmSync('./sessions', {
+            recursive: true,
+            force: true
+        });
+        console.log('SESSION DIHAPUS');
+    }
+
+    const { state, saveCreds } =
+        await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
         auth: state,
@@ -178,49 +188,20 @@ async function startBot() {
         defaultQueryTimeoutMs: 60000,
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | SAVE SESSION
-    |--------------------------------------------------------------------------
-    */
-
     sock.ev.on('creds.update', saveCreds);
-
-    /*
-    |--------------------------------------------------------------------------
-    | CONNECTION UPDATE
-    |--------------------------------------------------------------------------
-    */
 
     sock.ev.on('connection.update', async (update) => {
 
-        const { qr, connection } = update;
+        const { qr, connection, lastDisconnect } = update;
 
-       if (qr) {
+        if (qr) {
 
-    console.log('QR READY');
+            console.log('QR READY');
 
-    qrData = await QRCode.toDataURL(qr);
+            qrData = await QRCode.toDataURL(qr);
 
-    fs.writeFileSync(
-        './qr.txt',
-        qr
-    );
-}
-app.get('/qrraw', (req, res) => {
-
-    try {
-
-        const qr =
-            fs.readFileSync('./qr.txt', 'utf8');
-
-        res.send(qr);
-
-    } catch {
-
-        res.send('QR belum ada');
-    }
-});
+            fs.writeFileSync('./qr.txt', qr);
+        }
 
         if (connection === 'open') {
 
@@ -228,28 +209,28 @@ app.get('/qrraw', (req, res) => {
             console.log('BOT USER:', JSON.stringify(sock.user));
 
             if (sock.user?.lid) {
-        botLid = sock.user.lid.split(':')[0];
-        console.log('BOT LID:', botLid);
-    }
-            /*
-            |--------------------------------------------------------------------------
-            | DOWNLOAD EXCEL SAAT BOT CONNECT
-            |--------------------------------------------------------------------------
-            */
+                botLid = sock.user.lid.split(':')[0];
+                console.log('BOT LID:', botLid);
+            }
 
             await downloadExcel();
         }
 
-       if (connection === 'close') {
+        if (connection === 'close') {
 
-    console.log('BOT DISCONNECTED');
+            console.log('BOT DISCONNECTED');
 
-    setTimeout(() => {
-        startBot();
-    }, 5000);
-}
+            console.log(lastDisconnect?.error);
+
+            // reconnect tanpa menghapus session lagi
+            setTimeout(() => {
+                startBot();
+            }, 5000);
+        }
+
     });
 
+}
     /*
     |--------------------------------------------------------------------------
     | MESSAGE HANDLER
