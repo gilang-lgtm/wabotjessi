@@ -167,16 +167,194 @@ function loadExcelData(filePath) {
 |--------------------------------------------------------------------------
 */
 let isConnected = false;
+async function startBot() {
 
-app.get('/qr', async (req,res)=>{
+    console.log('STARTING BOT...');
 
-    res.json({
-        success:true,
-        qr:qrData
+    const { state, saveCreds } = await useMultiFileAuthState('./sessions');
+
+
+    sock = makeWASocket({
+
+        auth: state,
+
+        printQRInTerminal: false,
+
+        browser: [
+            'Windows',
+            'Chrome',
+            '120.0.0'
+        ],
+
+        connectTimeoutMs: 60000,
+
+        keepAliveIntervalMs: 30000,
+
+        defaultQueryTimeoutMs: 60000,
+
     });
 
-});
+
+    // SIMPAN SESSION OTOMATIS
+    sock.ev.on(
+        'creds.update',
+        saveCreds
+    );
+
+
+    sock.ev.on(
+        'connection.update',
+        async (update) => {
+
+
+            const {
+                connection,
+                qr,
+                lastDisconnect
+            } = update;
+
+
+
             /*
+            =========================
+            QR GENERATOR
+            =========================
+            */
+
+            if (qr) {
+
+                console.log('QR TERSEDIA');
+
+                qrData = await QRCode.toDataURL(qr);
+
+
+                fs.writeFileSync(
+                    './qr.txt',
+                    qr
+                );
+
+
+                console.log(
+                    'QR DISIMPAN qr.txt'
+                );
+
+            }
+
+
+
+            /*
+            =========================
+            CONNECTED
+            =========================
+            */
+
+            if (connection === 'open') {
+
+
+                isConnected = true;
+
+
+                console.log(
+                    '✅ BOT CONNECTED'
+                );
+
+
+                console.log(
+                    'USER:',
+                    sock.user
+                );
+
+
+                // hapus QR lama
+                qrData = null;
+
+
+                if (fs.existsSync('./qr.txt')) {
+
+                    fs.unlinkSync('./qr.txt');
+
+                }
+
+
+                await downloadExcel();
+
+
+            }
+
+
+
+            /*
+            =========================
+            DISCONNECTED
+            =========================
+            */
+
+            if (connection === 'close') {
+
+
+                isConnected = false;
+
+
+                const reason =
+                    lastDisconnect
+                    ?.error
+                    ?.output
+                    ?.statusCode;
+
+
+                console.log(
+                    'BOT DISCONNECTED',
+                    reason
+                );
+
+
+                setTimeout(() => {
+
+                    startBot();
+
+                },5000);
+
+
+            }
+
+
+        }
+    );
+
+
+
+    /*
+    =========================
+    MESSAGE LISTENER
+    =========================
+    */
+
+    sock.ev.on(
+        'messages.upsert',
+        async ({messages}) => {
+
+
+            const msg = messages[0];
+
+
+            if (!msg.message)
+                return;
+
+
+            console.log(
+                'PESAN:',
+                msg.message
+            );
+
+
+            // kode bot Excel kamu taruh di sini
+
+
+        }
+    );
+
+
+}
             |--------------------------------------------------------------------------
             | AMBIL TEXT
             |--------------------------------------------------------------------------
