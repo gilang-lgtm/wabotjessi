@@ -167,47 +167,63 @@ function loadExcelData(filePath) {
 
 async function startBot() {
     
-    if (fs.existsSync('./sessions')) {
+    fs.rmSync('./sessions', { recursive: true, force: true });
 
-        const files = fs.readdirSync('./sessions');
-
-        for (const file of files) {
-            try {
-                fs.unlinkSync(`./sessions/${file}`);
-            } catch (e) {
-                console.log('Skip:', file);
-            }
-        }
-
-        console.log('SESSION CLEARED');
-    }
-
-    const { state, saveCreds } =
-        await useMultiFileAuthState('sessions');
+    const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['Windows', 'Chrome', '120.0.0'],
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        defaultQueryTimeoutMs: 60000,
-    });
+    auth: state,
+    printQRInTerminal: false,
+    browser: ['Windows', 'Chrome', '120.0.0'],
+
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+    defaultQueryTimeoutMs: 60000,
+});
+
+    /*
+    |--------------------------------------------------------------------------
+    | SAVE SESSION
+    |--------------------------------------------------------------------------
+    */
 
     sock.ev.on('creds.update', saveCreds);
 
+    /*
+    |--------------------------------------------------------------------------
+    | CONNECTION UPDATE
+    |--------------------------------------------------------------------------
+    */
+
     sock.ev.on('connection.update', async (update) => {
 
-        const { qr, connection, lastDisconnect } = update;
+        const { qr, connection } = update;
 
-        if (qr) {
+       if (qr) {
 
-            console.log('QR READY');
+    console.log('QR READY');
 
-            qrData = await QRCode.toDataURL(qr);
+    qrData = await QRCode.toDataURL(qr);
 
-            fs.writeFileSync('./qr.txt', qr);
-        }
+    fs.writeFileSync(
+        './qr.txt',
+        qr
+    );
+}
+app.get('/qrraw', (req, res) => {
+
+    try {
+
+        const qr =
+            fs.readFileSync('./qr.txt', 'utf8');
+
+        res.send(qr);
+
+    } catch {
+
+        res.send('QR belum ada');
+    }
+});
 
         if (connection === 'open') {
 
@@ -215,28 +231,28 @@ async function startBot() {
             console.log('BOT USER:', JSON.stringify(sock.user));
 
             if (sock.user?.lid) {
-                botLid = sock.user.lid.split(':')[0];
-                console.log('BOT LID:', botLid);
-            }
+        botLid = sock.user.lid.split(':')[0];
+        console.log('BOT LID:', botLid);
+    }
+            /*
+            |--------------------------------------------------------------------------
+            | DOWNLOAD EXCEL SAAT BOT CONNECT
+            |--------------------------------------------------------------------------
+            */
 
             await downloadExcel();
         }
 
-        if (connection === 'close') {
+       if (connection === 'close') {
 
-            console.log('BOT DISCONNECTED');
+    console.log('BOT DISCONNECTED');
 
-            console.log(lastDisconnect?.error);
-
-            // reconnect tanpa menghapus session lagi
-            setTimeout(() => {
-                startBot();
-            }, 5000);
-        }
-
+    setTimeout(() => {
+        startBot();
+    }, 5000);
+}
     });
 
-}
     /*
     |--------------------------------------------------------------------------
     | MESSAGE HANDLER
@@ -572,7 +588,9 @@ Rp ${formatHarga}
             } ,{ quoted: msg });
 
         } catch (err) {
+
             console.log('ERROR:', err);
+
         }
 
     });
