@@ -181,8 +181,17 @@ async function startBot() {
         keepAliveIntervalMs: 30000,
         defaultQueryTimeoutMs: 60000,
     });
+    
+if (state.creds.me?.lid) {
 
+    botLid = state.creds.me.lid
+        .split(':')[0]
+        .replace('@lid','');
 
+    console.log('BOT LID:', botLid);
+
+}
+    
     // SIMPAN SESSION
     sock.ev.on('creds.update', saveCreds);
 
@@ -272,20 +281,21 @@ async function startBot() {
     ?.mentionedJid || [];
 
 
-const botNumber = sock.user?.id
+const botJidClean = sock.user?.id
     ?.split(':')[0];
 
 
 const isBotMentioned = mentionedJid.some(jid => {
 
-    const cleanMention = jid
+    const cleanJid = jid
+        .split(':')[0]
         .replace('@lid','')
-        .replace('@s.whatsapp.net','')
-        .split(':')[0];
+        .replace('@s.whatsapp.net','');
 
 
     return (
-        cleanMention === botNumber
+        cleanJid === botLid ||
+        cleanJid === botJidClean
     );
 
 });
@@ -293,8 +303,8 @@ const isBotMentioned = mentionedJid.some(jid => {
 
 console.log("MENTION CHECK:", {
     mentionedJid,
-    botNumber,
     botLid,
+    botJidClean,
     isBotMentioned
 });
 
