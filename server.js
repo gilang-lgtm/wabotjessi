@@ -166,14 +166,20 @@ function loadExcelData(filePath) {
 */
 
 async function startBot() {
-
-    // Hapus session hanya saat aplikasi pertama kali dijalankan
+    
     if (fs.existsSync('./sessions')) {
-        fs.rmSync('./sessions', {
-            recursive: true,
-            force: true
-        });
-        console.log('SESSION DIHAPUS');
+
+        const files = fs.readdirSync('./sessions');
+
+        for (const file of files) {
+            try {
+                fs.unlinkSync(`./sessions/${file}`);
+            } catch (e) {
+                console.log('Skip:', file);
+            }
+        }
+
+        console.log('SESSION CLEARED');
     }
 
     const { state, saveCreds } =
