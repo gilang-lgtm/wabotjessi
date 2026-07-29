@@ -170,24 +170,17 @@ let isConnected = false;
 
 async function startBot() {
 
-    const { state, saveCreds } = await useMultiFileAuthState('./sessions');
+    const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['Windows', 'Chrome', '120.0.0'],
+    auth: state,
+    printQRInTerminal: false,
+    browser: ['Windows', 'Chrome', '120.0.0'],
 
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        defaultQueryTimeoutMs: 60000,
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
-        console.log('Connection:', connection);
-    });
-}
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+    defaultQueryTimeoutMs: 60000,
+});
 
     /*
     |--------------------------------------------------------------------------
