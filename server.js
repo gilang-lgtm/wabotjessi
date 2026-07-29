@@ -196,7 +196,7 @@ async function startBot() {
 
     sock.ev.on('connection.update', async (update) => {
 
-        const { qr, connection } = update;
+        const { qr, connection, lastDisconnect } = update;
 
        if (qr) {
 
@@ -242,9 +242,25 @@ app.get('/qrraw', (req, res) => {
             await downloadExcel();
         }
 
-       if (connection === 'close') {
+     const { DisconnectReason } = require('@whiskeysockets/baileys');
 
+if (connection === 'close') {
+
+    const statusCode =
+        lastDisconnect?.error?.output?.statusCode;
+
+    console.log('==============================');
     console.log('BOT DISCONNECTED');
+    console.log('STATUS :', statusCode);
+    console.log('ERROR  :', lastDisconnect?.error);
+    console.log('==============================');
+
+    if (
+        statusCode === DisconnectReason.loggedOut
+    ) {
+        console.log('SESSION EXPIRED');
+        return;
+    }
 
     setTimeout(() => {
         startBot();
