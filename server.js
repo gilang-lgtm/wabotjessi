@@ -168,79 +168,14 @@ function loadExcelData(filePath) {
 */
 let isConnected = false;
 
-async function startBot() {
+app.get('/qr', async (req,res)=>{
 
-    const { state, saveCreds } = await useMultiFileAuthState('./sessions');
-
-    sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['Windows', 'Chrome', '120.0.0'],
-
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        defaultQueryTimeoutMs: 60000,
+    res.json({
+        success:true,
+        qr:qrData
     });
 
-
-    // SIMPAN SESSION
-    sock.ev.on('creds.update', saveCreds);
-
-
-    // CONNECTION UPDATE
-    sock.ev.on('connection.update', async (update) => {
-
-        const { qr, connection } = update;
-
-        if (qr) {
-            console.log('QR READY');
-
-            qrData = await QRCode.toDataURL(qr);
-
-            fs.writeFileSync('./qr.txt', qr);
-        }
-
-
-        if (connection === 'open') {
-
-            isConnected = true;
-
-            console.log('BOT CONNECTED');
-
-            await downloadExcel();
-        }
-
-
-        if (connection === 'close') {
-
-            isConnected = false;
-
-            console.log('BOT DISCONNECTED');
-
-            setTimeout(() => {
-                startBot();
-            }, 5000);
-        }
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MESSAGE HANDLER
-    |--------------------------------------------------------------------------
-    */
-
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-
-        try {
-
-            const msg = messages[0];
-
-            if (!msg.message) return;
-
-            const from = msg.key.remoteJid;
-
+});
             /*
             |--------------------------------------------------------------------------
             | AMBIL TEXT
