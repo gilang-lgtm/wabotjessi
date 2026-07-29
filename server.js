@@ -296,8 +296,13 @@ console.log("MENTION CHECK:", {
     isBotMentioned
 });
 
-
+console.log("IS BOT MENTIONED:", isBotMentioned);
+console.log("BOT LID:", botLid);
+console.log("BOT JID CLEAN:", botJidClean);
+            
 if (!isBotMentioned) return;
+            
+console.log("TAG BOT LOLOS");
             /*
             |--------------------------------------------------------------------------
             | HARUS TAG BOT
