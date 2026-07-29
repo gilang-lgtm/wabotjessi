@@ -572,9 +572,7 @@ Rp ${formatHarga}
             } ,{ quoted: msg });
 
         } catch (err) {
-
             console.log('ERROR:', err);
-
         }
 
     });
