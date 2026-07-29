@@ -23,7 +23,8 @@ let botLid = null;
 |--------------------------------------------------------------------------
 */
 
-const LATEST_URL = 'https://wabot256.my.id/api/latest-file';
+const LATEST_URL =
+'https://wabot256.my.id/wabot/public/uploads/latest.txt';
 const LOCAL_EXCEL_PATH =
     path.join(__dirname, 'temp-' + Date.now() + '.xlsx');
 /*
@@ -44,14 +45,12 @@ async function downloadExcel() {
         |--------------------------------------------------------------------------
         */
 
-       const latestResponse = await axios.get(
-    LATEST_URL + '?t=' + Date.now(),
-           { responseType: 'text' } 
-           
-);
-console.log('TYPE:', typeof latestResponse.data);  // ← tambah ini
-console.log('DATA:', latestResponse.data);     
-const latestFile = String(latestResponse.data).trim();
+        const latestResponse = await axios.get(
+            LATEST_URL + '?t=' + Date.now()
+        );
+
+        const latestFile =
+            latestResponse.data.trim();
 
         console.log('FILE:', latestFile);
 
@@ -160,77 +159,121 @@ function loadExcelData(filePath) {
 
     return allData;
 }
-
 /*
 |--------------------------------------------------------------------------
 | START BOT
 |--------------------------------------------------------------------------
 */
-let isConnected = false;
-async function startBot() {
 
-    const { state, saveCreds } = await useMultiFileAuthState('./sessions');
+async function startBot() {
+    
+    fs.rmSync('./sessions', { recursive: true, force: true });
+
+    const { state, saveCreds } = await useMultiFileAuthState('sessions');
 
     sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['Windows', 'Chrome', '120.0.0'],
+    auth: state,
+    printQRInTerminal: false,
+    browser: ['Windows', 'Chrome', '120.0.0'],
 
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        defaultQueryTimeoutMs: 60000,
-    });
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+    defaultQueryTimeoutMs: 60000,
+});
 
+    /*
+    |--------------------------------------------------------------------------
+    | SAVE SESSION
+    |--------------------------------------------------------------------------
+    */
 
-    // SIMPAN SESSION
     sock.ev.on('creds.update', saveCreds);
 
+    /*
+    |--------------------------------------------------------------------------
+    | CONNECTION UPDATE
+    |--------------------------------------------------------------------------
+    */
 
-    // CONNECTION UPDATE
     sock.ev.on('connection.update', async (update) => {
 
         const { qr, connection } = update;
 
-        if (qr) {
-            console.log('QR READY');
+       if (qr) {
 
-            qrData = await QRCode.toDataURL(qr);
+    console.log('QR READY');
 
-            fs.writeFileSync('./qr.txt', qr);
-        }
+    qrData = await QRCode.toDataURL(qr);
 
+    fs.writeFileSync(
+        './qr.txt',
+        qr
+    );
+}
+app.get('/qrraw', (req, res) => {
+
+    try {
+
+        const qr =
+            fs.readFileSync('./qr.txt', 'utf8');
+
+        res.send(qr);
+
+    } catch {
+
+        res.send('QR belum ada');
+    }
+});
 
         if (connection === 'open') {
 
-            isConnected = true;
-
             console.log('BOT CONNECTED');
+            console.log('BOT USER:', JSON.stringify(sock.user));
+
+            if (sock.user?.lid) {
+        botLid = sock.user.lid.split(':')[0];
+        console.log('BOT LID:', botLid);
+    }
+            /*
+            |--------------------------------------------------------------------------
+            | DOWNLOAD EXCEL SAAT BOT CONNECT
+            |--------------------------------------------------------------------------
+            */
 
             await downloadExcel();
         }
 
+       if (connection === 'close') {
 
-        if (connection === 'close') {
+    console.log('BOT DISCONNECTED');
 
-            isConnected = false;
-
-            console.log('BOT DISCONNECTED');
-
-            setTimeout(() => {
-                startBot();
-            }, 5000);
-        }
-
+    setTimeout(() => {
+        startBot();
+    }, 5000);
+}
     });
 
+    /*
+    |--------------------------------------------------------------------------
+    | MESSAGE HANDLER
+    |--------------------------------------------------------------------------
+    */
 
-    // MESSAGE HANDLER
     sock.ev.on('messages.upsert', async ({ messages }) => {
 
-        // kode pesan kamu taruh di sini
-    });
+        try {
 
-}
+            const msg = messages[0];
+
+            if (!msg.message) return;
+
+            const from = msg.key.remoteJid;
+
+            /*
+            |--------------------------------------------------------------------------
+            | AMBIL TEXT
+            |--------------------------------------------------------------------------
+            */
 
             const text =
                 msg.message?.conversation ||
