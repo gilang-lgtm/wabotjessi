@@ -4,6 +4,21 @@ const XLSX = require('xlsx');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const dns = require('dns');
+
+const httpsAgent = new https.Agent({
+    keepAlive: true,
+    lookup: (hostname, options, callback) => {
+        dns.lookup(
+            hostname,
+            {
+                family: 4
+            },
+            callback
+        );
+    }
+});
 
 const {
     default: makeWASocket,
@@ -133,6 +148,119 @@ async function downloadExcel() {
             'FULL ERROR:',
             JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
         );
+
+        console.error('=================================');
+
+        return null;
+    }
+}async function downloadExcel() {
+    try {
+        console.log('=================================');
+        console.log('AMBIL FILE EXCEL TERBARU...');
+        console.log('LATEST_URL:', LATEST_URL);
+
+        const url = LATEST_URL + '?t=' + Date.now();
+
+        console.log('REQUEST URL:', url);
+
+        const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+
+            timeout: 120000,
+
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+
+            httpsAgent: httpsAgent,
+
+            validateStatus: function (status) {
+                return status >= 200 && status < 300;
+            }
+        });
+
+        console.log('HTTP STATUS:', response.status);
+
+        console.log(
+            'CONTENT-TYPE:',
+            response.headers['content-type']
+        );
+
+        console.log(
+            'CONTENT-LENGTH:',
+            response.headers['content-length']
+        );
+
+        console.log(
+            'CONTENT-DISPOSITION:',
+            response.headers['content-disposition']
+        );
+
+        const buffer = Buffer.from(response.data);
+
+        console.log(
+            'BUFFER SIZE:',
+            buffer.length,
+            'bytes'
+        );
+
+        if (buffer.length === 0) {
+            throw new Error('File Excel kosong');
+        }
+
+        const tempPath = path.join(
+            __dirname,
+            'temp.xlsx'
+        );
+
+        if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+        }
+
+        fs.writeFileSync(
+            tempPath,
+            buffer
+        );
+
+        const stats = fs.statSync(tempPath);
+
+        console.log(
+            'EXCEL BERHASIL DISIMPAN:',
+            stats.size,
+            'bytes'
+        );
+
+        console.log(
+            'PATH:',
+            tempPath
+        );
+
+        console.log('=================================');
+
+        return tempPath;
+
+    } catch (err) {
+
+        console.error('=================================');
+        console.error('❌ GAGAL AMBIL EXCEL');
+
+        console.error('ERROR NAME:', err?.name);
+        console.error('ERROR MESSAGE:', err?.message);
+        console.error('ERROR CODE:', err?.code);
+
+        if (err?.errors) {
+            console.error(
+                'INNER ERRORS:',
+                err.errors.map(e => ({
+                    name: e.name,
+                    code: e.code,
+                    message: e.message,
+                    address: e.address,
+                    port: e.port
+                }))
+            );
+        }
+
+        console.error('FULL ERROR:', err);
 
         console.error('=================================');
 
