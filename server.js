@@ -34,64 +34,107 @@ const LOCAL_EXCEL_PATH =
 
 async function downloadExcel() {
     try {
+        console.log('=================================');
         console.log('AMBIL FILE EXCEL TERBARU...');
+        console.log('LATEST_URL:', LATEST_URL);
 
-        const response = await axios.get(
-            LATEST_URL + '?t=' + Date.now(),
-            {
-                responseType: 'arraybuffer',
-                timeout: 120000,
-                maxContentLength: Infinity,
-                maxBodyLength: Infinity
+        const url = LATEST_URL + '?t=' + Date.now();
+
+        console.log('REQUEST URL:', url);
+
+        const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+            timeout: 120000,
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+            validateStatus: function (status) {
+                return status >= 200 && status < 300;
             }
-        );
+        });
 
-        console.log('STATUS:', response.status);
-        console.log('CONTENT-TYPE:', response.headers['content-type']);
-        console.log('CONTENT-LENGTH:', response.headers['content-length']);
+        console.log('HTTP STATUS:', response.status);
+        console.log(
+            'CONTENT-TYPE:',
+            response.headers['content-type']
+        );
+        console.log(
+            'CONTENT-LENGTH:',
+            response.headers['content-length']
+        );
         console.log(
             'CONTENT-DISPOSITION:',
             response.headers['content-disposition']
         );
 
-        if (!response.data || response.data.length === 0) {
+        if (!response.data) {
+            throw new Error('response.data kosong');
+        }
+
+        const buffer = Buffer.from(response.data);
+
+        console.log(
+            'BUFFER SIZE:',
+            buffer.length,
+            'bytes'
+        );
+
+        if (buffer.length === 0) {
             throw new Error('File Excel kosong');
         }
 
         const tempPath = path.join(__dirname, 'temp.xlsx');
 
-        // Hapus Excel lama
         if (fs.existsSync(tempPath)) {
             fs.unlinkSync(tempPath);
         }
 
-        // Simpan Excel baru
-        fs.writeFileSync(
-            tempPath,
-            Buffer.from(response.data)
-        );
+        fs.writeFileSync(tempPath, buffer);
 
         const stats = fs.statSync(tempPath);
 
         console.log(
-            'EXCEL UPDATED:',
-            Math.round(stats.size / 1024),
-            'KB'
+            'EXCEL BERHASIL DISIMPAN:',
+            stats.size,
+            'bytes'
         );
+
+        console.log('PATH:', tempPath);
+        console.log('=================================');
 
         return tempPath;
 
     } catch (err) {
 
-        console.error('GAGAL AMBIL EXCEL:', err.message);
+        console.error('=================================');
+        console.error('❌ GAGAL AMBIL EXCEL');
 
-        if (err.response) {
-            console.error('STATUS:', err.response.status);
+        console.error('ERROR NAME:', err?.name);
+        console.error('ERROR MESSAGE:', err?.message);
+        console.error('ERROR CODE:', err?.code);
+        console.error('ERROR STATUS:', err?.status);
+
+        if (err?.response) {
             console.error(
-                'CONTENT-TYPE:',
-                err.response.headers?.['content-type']
+                'RESPONSE STATUS:',
+                err.response.status
+            );
+
+            console.error(
+                'RESPONSE HEADERS:',
+                JSON.stringify(err.response.headers)
             );
         }
+
+        if (err?.request) {
+            console.error('AXIOS REQUEST TERBENTUK: YES');
+        }
+
+        console.error(
+            'FULL ERROR:',
+            JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
+        );
+
+        console.error('=================================');
 
         return null;
     }
