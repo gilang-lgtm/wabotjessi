@@ -7,6 +7,7 @@ const path = require('path');
 const https = require('https');
 const dns = require('dns');
 
+dns.setDefaultResultOrder('ipv4first');
 const httpsAgent = new https.Agent({
     keepAlive: true,
     lookup: (hostname, options, callback) => {
@@ -46,12 +47,9 @@ const LOCAL_EXCEL_PATH =
 | DOWNLOAD EXCEL DARI HOSTING
 |--------------------------------------------------------------------------
 */
-
 async function downloadExcel() {
     try {
-        console.log('=================================');
         console.log('AMBIL FILE EXCEL TERBARU...');
-        console.log('LATEST_URL:', LATEST_URL);
 
         const url = LATEST_URL + '?t=' + Date.now();
 
@@ -61,99 +59,43 @@ async function downloadExcel() {
             responseType: 'arraybuffer',
             timeout: 120000,
             maxContentLength: Infinity,
-            maxBodyLength: Infinity,
-            validateStatus: function (status) {
-                return status >= 200 && status < 300;
-            }
+            maxBodyLength: Infinity
         });
 
         console.log('HTTP STATUS:', response.status);
-        console.log(
-            'CONTENT-TYPE:',
-            response.headers['content-type']
-        );
-        console.log(
-            'CONTENT-LENGTH:',
-            response.headers['content-length']
-        );
-        console.log(
-            'CONTENT-DISPOSITION:',
-            response.headers['content-disposition']
-        );
-
-        if (!response.data) {
-            throw new Error('response.data kosong');
-        }
+        console.log('CONTENT-TYPE:', response.headers['content-type']);
+        console.log('CONTENT-LENGTH:', response.headers['content-length']);
 
         const buffer = Buffer.from(response.data);
 
-        console.log(
-            'BUFFER SIZE:',
-            buffer.length,
-            'bytes'
-        );
+        console.log('BUFFER SIZE:', buffer.length, 'bytes');
 
-        if (buffer.length === 0) {
+        if (!buffer.length) {
             throw new Error('File Excel kosong');
         }
 
         const tempPath = path.join(__dirname, 'temp.xlsx');
 
-        if (fs.existsSync(tempPath)) {
-            fs.unlinkSync(tempPath);
-        }
-
         fs.writeFileSync(tempPath, buffer);
 
-        const stats = fs.statSync(tempPath);
-
-        console.log(
-            'EXCEL BERHASIL DISIMPAN:',
-            stats.size,
-            'bytes'
-        );
-
-        console.log('PATH:', tempPath);
-        console.log('=================================');
+        console.log('EXCEL UPDATED:', tempPath);
 
         return tempPath;
 
     } catch (err) {
-
-        console.error('=================================');
         console.error('❌ GAGAL AMBIL EXCEL');
+        console.error('NAME:', err?.name);
+        console.error('MESSAGE:', err?.message);
+        console.error('CODE:', err?.code);
 
-        console.error('ERROR NAME:', err?.name);
-        console.error('ERROR MESSAGE:', err?.message);
-        console.error('ERROR CODE:', err?.code);
-        console.error('ERROR STATUS:', err?.status);
-
-        if (err?.response) {
-            console.error(
-                'RESPONSE STATUS:',
-                err.response.status
-            );
-
-            console.error(
-                'RESPONSE HEADERS:',
-                JSON.stringify(err.response.headers)
-            );
+        if (err?.errors) {
+            console.error('INNER ERRORS:', err.errors);
         }
-
-        if (err?.request) {
-            console.error('AXIOS REQUEST TERBENTUK: YES');
-        }
-
-        console.error(
-            'FULL ERROR:',
-            JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
-        );
-
-        console.error('=================================');
 
         return null;
     }
-}async function downloadExcel() {
+}
+async function downloadExcel() {
     try {
         console.log('=================================');
         console.log('AMBIL FILE EXCEL TERBARU...');
