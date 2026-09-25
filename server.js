@@ -33,81 +33,69 @@ const LOCAL_EXCEL_PATH =
 */
 
 async function downloadExcel() {
-
     try {
+        console.log('AMBIL FILE EXCEL TERBARU...');
 
-        console.log('AMBIL FILE TERBARU...');
-
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL NAMA FILE TERBARU
-        |--------------------------------------------------------------------------
-        */
-
-       const latestResponse = await axios.get(
-    LATEST_URL + '?t=' + Date.now(),
-           { responseType: 'text' } 
-           
-);
-console.log('TYPE:', typeof latestResponse.data);  // ← tambah ini
-console.log('DATA:', latestResponse.data);     
-const latestFile = String(latestResponse.data).trim();
-
-        console.log('FILE:', latestFile);
-
-        console.log('DOWNLOAD URL:',
-'https://wabot256.my.id/wabot/public/uploads/' + latestFile);
-        /*
-        |--------------------------------------------------------------------------
-        | DOWNLOAD FILE EXCEL
-        |--------------------------------------------------------------------------
-        */
-
-        const response = await axios({
-            method: 'GET',
-            url:
-                'https://wabot256.my.id/wabot/public/uploads/' +
-                latestFile +
-                '?t=' +
-                Date.now(),
-            responseType: 'arraybuffer'
-        });
-
-        /*
-        |--------------------------------------------------------------------------
-        | SIMPAN FILE SEMENTARA
-        |--------------------------------------------------------------------------
-        */
-
-        const tempPath =
-    path.join(__dirname, 'temp.xlsx');
-
-if (fs.existsSync(tempPath)) {
-    fs.unlinkSync(tempPath);
-}
-
-fs.writeFileSync(
-    tempPath,
-    response.data
-);
-
-        fs.writeFileSync(
-            tempPath,
-            response.data
+        const response = await axios.get(
+            LATEST_URL + '?t=' + Date.now(),
+            {
+                responseType: 'arraybuffer',
+                timeout: 120000,
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            }
         );
 
-        console.log('EXCEL UPDATED');
+        console.log('STATUS:', response.status);
+        console.log('CONTENT-TYPE:', response.headers['content-type']);
+        console.log('CONTENT-LENGTH:', response.headers['content-length']);
+        console.log(
+            'CONTENT-DISPOSITION:',
+            response.headers['content-disposition']
+        );
+
+        if (!response.data || response.data.length === 0) {
+            throw new Error('File Excel kosong');
+        }
+
+        const tempPath = path.join(__dirname, 'temp.xlsx');
+
+        // Hapus Excel lama
+        if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+        }
+
+        // Simpan Excel baru
+        fs.writeFileSync(
+            tempPath,
+            Buffer.from(response.data)
+        );
+
+        const stats = fs.statSync(tempPath);
+
+        console.log(
+            'EXCEL UPDATED:',
+            Math.round(stats.size / 1024),
+            'KB'
+        );
 
         return tempPath;
 
     } catch (err) {
 
-        console.log(err.message);
+        console.error('GAGAL AMBIL EXCEL:', err.message);
+
+        if (err.response) {
+            console.error('STATUS:', err.response.status);
+            console.error(
+                'CONTENT-TYPE:',
+                err.response.headers?.['content-type']
+            );
+        }
 
         return null;
     }
 }
-
 /*
 |--------------------------------------------------------------------------
 | LOAD EXCEL
