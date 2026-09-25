@@ -5,21 +5,6 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const dns = require('dns');
-
-dns.setDefaultResultOrder('ipv4first');
-const httpsAgent = new https.Agent({
-    keepAlive: true,
-    lookup: (hostname, options, callback) => {
-        dns.lookup(
-            hostname,
-            {
-                family: 4
-            },
-            callback
-        );
-    }
-});
 
 const {
     default: makeWASocket,
@@ -33,6 +18,7 @@ app.use(express.json());
 let qrData = null;
 let sock = null;
 let botLid = null;
+
 /*
 |--------------------------------------------------------------------------
 | CONFIG
@@ -40,175 +26,183 @@ let botLid = null;
 */
 
 const LATEST_URL = 'https://wabot256.my.id/api/latest-file';
-const LOCAL_EXCEL_PATH =
-    path.join(__dirname, 'temp-' + Date.now() + '.xlsx');
+
+const TEMP_EXCEL_PATH =
+    path.join(__dirname, 'temp.xlsx');
+
+/*
+|--------------------------------------------------------------------------
+| FORCE IPV4
+|--------------------------------------------------------------------------
+*/
+
+const httpsAgent = new https.Agent({
+    family: 4,
+    keepAlive: true
+});
+
 /*
 |--------------------------------------------------------------------------
 | DOWNLOAD EXCEL DARI HOSTING
 |--------------------------------------------------------------------------
 */
+
 async function downloadExcel() {
+
     try {
-        console.log('AMBIL FILE EXCEL TERBARU...');
 
-        const url = LATEST_URL + '?t=' + Date.now();
-
-        console.log('REQUEST URL:', url);
-
-        const response = await axios.get(url, {
-            responseType: 'arraybuffer',
-            timeout: 120000,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity
-        });
-
-        console.log('HTTP STATUS:', response.status);
-        console.log('CONTENT-TYPE:', response.headers['content-type']);
-        console.log('CONTENT-LENGTH:', response.headers['content-length']);
-
-        const buffer = Buffer.from(response.data);
-
-        console.log('BUFFER SIZE:', buffer.length, 'bytes');
-
-        if (!buffer.length) {
-            throw new Error('File Excel kosong');
-        }
-
-        const tempPath = path.join(__dirname, 'temp.xlsx');
-
-        fs.writeFileSync(tempPath, buffer);
-
-        console.log('EXCEL UPDATED:', tempPath);
-
-        return tempPath;
-
-    } catch (err) {
-        console.error('❌ GAGAL AMBIL EXCEL');
-        console.error('NAME:', err?.name);
-        console.error('MESSAGE:', err?.message);
-        console.error('CODE:', err?.code);
-
-        if (err?.errors) {
-            console.error('INNER ERRORS:', err.errors);
-        }
-
-        return null;
-    }
-}
-async function downloadExcel() {
-    try {
         console.log('=================================');
         console.log('AMBIL FILE EXCEL TERBARU...');
         console.log('LATEST_URL:', LATEST_URL);
 
-        const url = LATEST_URL + '?t=' + Date.now();
+        /*
+        |--------------------------------------------------------------------------
+        | LANGSUNG DOWNLOAD FILE EXCEL
+        |--------------------------------------------------------------------------
+        |
+        | Endpoint /api/latest-file ternyata langsung mengirim file XLSX.
+        | Jadi TIDAK perlu mengambil nama file lalu membuat URL uploads sendiri.
+        |
+        */
 
-        console.log('REQUEST URL:', url);
+        const response = await axios.get(
+            LATEST_URL + '?t=' + Date.now(),
+            {
+                responseType: 'arraybuffer',
 
-        const response = await axios.get(url, {
-            responseType: 'arraybuffer',
+                timeout: 60000,
 
-            timeout: 120000,
+                httpsAgent: httpsAgent,
 
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0',
+                    'Accept': '*/*',
+                    'Cache-Control': 'no-cache'
+                },
 
-            httpsAgent: httpsAgent,
-
-            validateStatus: function (status) {
-                return status >= 200 && status < 300;
+                validateStatus: function (status) {
+                    return status >= 200 && status < 300;
+                }
             }
-        });
-
-        console.log('HTTP STATUS:', response.status);
-
-        console.log(
-            'CONTENT-TYPE:',
-            response.headers['content-type']
         );
 
         console.log(
-            'CONTENT-LENGTH:',
-            response.headers['content-length']
+            'EXCEL RESPONSE STATUS:',
+            response.status
         );
 
         console.log(
-            'CONTENT-DISPOSITION:',
-            response.headers['content-disposition']
-        );
-
-        const buffer = Buffer.from(response.data);
-
-        console.log(
-            'BUFFER SIZE:',
-            buffer.length,
+            'EXCEL SIZE:',
+            response.data.length,
             'bytes'
         );
 
-        if (buffer.length === 0) {
-            throw new Error('File Excel kosong');
+        /*
+        |--------------------------------------------------------------------------
+        | CEK UKURAN FILE
+        |--------------------------------------------------------------------------
+        */
+
+        if (!response.data || response.data.length < 1000) {
+
+            console.log(
+                'ERROR: File Excel terlalu kecil / kosong'
+            );
+
+            return null;
         }
 
-        const tempPath = path.join(
-            __dirname,
-            'temp.xlsx'
-        );
+        /*
+        |--------------------------------------------------------------------------
+        | SIMPAN FILE TEMPORARY
+        |--------------------------------------------------------------------------
+        */
 
-        if (fs.existsSync(tempPath)) {
-            fs.unlinkSync(tempPath);
+        if (fs.existsSync(TEMP_EXCEL_PATH)) {
+
+            try {
+
+                fs.unlinkSync(TEMP_EXCEL_PATH);
+
+            } catch (err) {
+
+                console.log(
+                    'GAGAL HAPUS TEMP EXCEL:',
+                    err.message
+                );
+
+            }
         }
 
         fs.writeFileSync(
-            tempPath,
-            buffer
+            TEMP_EXCEL_PATH,
+            response.data
         );
 
-        const stats = fs.statSync(tempPath);
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDASI FILE EXCEL
+        |--------------------------------------------------------------------------
+        */
+
+        try {
+
+            XLSX.readFile(TEMP_EXCEL_PATH);
+
+        } catch (err) {
+
+            console.log(
+                'ERROR: File yang didownload bukan Excel valid'
+            );
+
+            console.log(
+                err.message
+            );
+
+            return null;
+        }
 
         console.log(
-            'EXCEL BERHASIL DISIMPAN:',
-            stats.size,
-            'bytes'
-        );
-
-        console.log(
-            'PATH:',
-            tempPath
+            'EXCEL UPDATED:',
+            TEMP_EXCEL_PATH
         );
 
         console.log('=================================');
 
-        return tempPath;
+        return TEMP_EXCEL_PATH;
 
     } catch (err) {
 
-        console.error('=================================');
-        console.error('❌ GAGAL AMBIL EXCEL');
+        console.log('=================================');
+        console.log('❌ GAGAL AMBIL EXCEL');
+        console.log('ERROR NAME:', err.name);
+        console.log('ERROR MESSAGE:', err.message);
+        console.log('ERROR CODE:', err.code);
+        console.log('ERROR STATUS:', err.response?.status || '-');
 
-        console.error('ERROR NAME:', err?.name);
-        console.error('ERROR MESSAGE:', err?.message);
-        console.error('ERROR CODE:', err?.code);
+        if (err.code === 'ETIMEDOUT') {
 
-        if (err?.errors) {
-            console.error(
-                'INNER ERRORS:',
-                err.errors.map(e => ({
-                    name: e.name,
-                    code: e.code,
-                    message: e.message,
-                    address: e.address,
-                    port: e.port
-                }))
+            console.log(
+                'Koneksi timeout. Request sudah dipaksa menggunakan IPv4.'
             );
+
         }
 
-        console.error('FULL ERROR:', err);
+        if (err.response) {
 
-        console.error('=================================');
+            console.log(
+                'HTTP STATUS:',
+                err.response.status
+            );
+
+        }
+
+        console.log('=================================');
 
         return null;
     }
 }
+
 /*
 |--------------------------------------------------------------------------
 | LOAD EXCEL
@@ -224,39 +218,51 @@ function loadExcelData(filePath) {
 
     workbook.SheetNames.forEach(sheetName => {
 
-        console.log('BACA SHEET:', sheetName);
+        console.log(
+            'BACA SHEET:',
+            sheetName
+        );
 
         const sheet =
             workbook.Sheets[sheetName];
 
         const data =
-            XLSX.utils.sheet_to_json(sheet, {
-                defval: '',
-                raw: false
+            XLSX.utils.sheet_to_json(
+                sheet,
+                {
+                    defval: '',
+                    raw: false
+                }
+            );
+
+        const filtered =
+            data.filter(item => {
+
+                const skuKey =
+                    Object.keys(item)
+                        .find(k =>
+                            String(k)
+                                .toLowerCase()
+                                .includes('sku')
+                        );
+
+                if (!skuKey) {
+                    return false;
+                }
+
+                const sku =
+                    String(item[skuKey] || '')
+                        .trim();
+
+                return sku !== '';
+
             });
-
-        const filtered = data.filter(item => {
-
-    const skuKey = Object.keys(item)
-        .find(k =>
-            String(k)
-            .toLowerCase()
-            .includes('sku')
-        );
-
-    if (!skuKey) return false;
-
-    const sku =
-        String(item[skuKey] || '')
-        .trim();
-
-    return sku !== '';
-});
 
         allData = [
             ...allData,
             ...filtered
         ];
+
     });
 
     return allData;
@@ -267,429 +273,703 @@ function loadExcelData(filePath) {
 | START BOT
 |--------------------------------------------------------------------------
 */
-let isConnected = false;
 
 async function startBot() {
 
-    const { state, saveCreds } = await useMultiFileAuthState('./sessions');
+    try {
 
-    sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['Windows', 'Chrome', '120.0.0'],
+        const {
+            state,
+            saveCreds
+        } = await useMultiFileAuthState(
+            'sessions'
+        );
 
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
-        defaultQueryTimeoutMs: 60000,
-    });
-    
-if (state.creds.me?.lid) {
+        sock = makeWASocket({
 
-    botLid = state.creds.me.lid
-        .split(':')[0]
-        .replace('@lid','');
+            auth: state,
 
-    console.log('BOT LID:', botLid);
+            printQRInTerminal: false,
 
-}
-    
-    // SIMPAN SESSION
-    sock.ev.on('creds.update', saveCreds);
+            browser: [
+                'Windows',
+                'Chrome',
+                '120.0.0'
+            ],
 
+            connectTimeoutMs: 60000,
 
-    // CONNECTION UPDATE
-    sock.ev.on('connection.update', async (update) => {
+            keepAliveIntervalMs: 30000,
 
-        const { qr, connection } = update;
+            defaultQueryTimeoutMs: 60000
 
-        if (qr) {
-            console.log('QR READY');
+        });
 
-            qrData = await QRCode.toDataURL(qr);
+        /*
+        |--------------------------------------------------------------------------
+        | SAVE SESSION
+        |--------------------------------------------------------------------------
+        */
 
-            fs.writeFileSync('./qr.txt', qr);
-        }
+        sock.ev.on(
+            'creds.update',
+            saveCreds
+        );
 
+        /*
+        |--------------------------------------------------------------------------
+        | CONNECTION UPDATE
+        |--------------------------------------------------------------------------
+        */
 
-        if (connection === 'open') {
+        sock.ev.on(
+            'connection.update',
+            async (update) => {
 
-    isConnected = true;
+                const {
+                    qr,
+                    connection
+                } = update;
 
-    console.log('BOT CONNECTED');
+                /*
+                |--------------------------------------------------------------------------
+                | QR READY
+                |--------------------------------------------------------------------------
+                */
 
-    console.log(
-        'CREDS ME:',
-        state.creds.me
-    );
+                if (qr) {
 
-}
+                    console.log(
+                        'QR READY'
+                    );
 
-        if (connection === 'close') {
+                    qrData =
+                        await QRCode.toDataURL(
+                            qr
+                        );
 
-            isConnected = false;
+                    fs.writeFileSync(
+                        './qr.txt',
+                        qr
+                    );
 
-            console.log('BOT DISCONNECTED');
+                }
 
-            setTimeout(() => {
-                startBot();
-            }, 5000);
-        }
+                /*
+                |--------------------------------------------------------------------------
+                | BOT CONNECTED
+                |--------------------------------------------------------------------------
+                */
 
-    });
+                if (connection === 'open') {
 
+                    console.log(
+                        'BOT CONNECTED'
+                    );
 
-    /*
-    |--------------------------------------------------------------------------
-    | MESSAGE HANDLER
-    |--------------------------------------------------------------------------
-    */
+                    console.log(
+                        'BOT USER:',
+                        JSON.stringify(sock.user)
+                    );
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
+                    if (sock.user?.lid) {
 
-        try {
+                        botLid =
+                            sock.user.lid
+                                .split(':')[0];
 
-            const msg = messages[0];
+                        console.log(
+                            'BOT LID:',
+                            botLid
+                        );
 
-            if (!msg.message) return;
+                    }
 
-            const from = msg.key.remoteJid;
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DOWNLOAD EXCEL SAAT BOT CONNECT
+                    |--------------------------------------------------------------------------
+                    */
 
-            /*
-            |--------------------------------------------------------------------------
-            | AMBIL TEXT
-            |--------------------------------------------------------------------------
-            */
+                    await downloadExcel();
 
-            const text =
-                msg.message?.conversation ||
-                msg.message?.extendedTextMessage?.text ||
-                '';
+                }
 
-            if (!text) return;
+                /*
+                |--------------------------------------------------------------------------
+                | BOT DISCONNECTED
+                |--------------------------------------------------------------------------
+                */
 
-            console.log('PESAN MASUK:', text);
+                if (connection === 'close') {
 
-        
-            /*
-            |--------------------------------------------------------------------------
-            | CEK MENTION
-            |--------------------------------------------------------------------------
-            */
+                    console.log(
+                        'BOT DISCONNECTED'
+                    );
 
-           const mentionedJid =
-    msg.message?.extendedTextMessage
-    ?.contextInfo
-    ?.mentionedJid || [];
+                    sock = null;
 
+                    setTimeout(() => {
 
-const botJidClean = sock.user?.id
-    ?.split(':')[0];
+                        console.log(
+                            'MENCOBA CONNECT ULANG...'
+                        );
 
+                        startBot();
 
-const isBotMentioned = mentionedJid.some(jid => {
+                    }, 5000);
 
-    const cleanJid = jid
-        .split(':')[0]
-        .replace('@lid','')
-        .replace('@s.whatsapp.net','');
+                }
 
+            }
+        );
 
-    return (
-        cleanJid === botLid ||
-        cleanJid === botJidClean
-    );
+        /*
+        |--------------------------------------------------------------------------
+        | MESSAGE HANDLER
+        |--------------------------------------------------------------------------
+        */
 
-});
+        sock.ev.on(
+            'messages.upsert',
+            async ({ messages }) => {
 
+                try {
 
-console.log("MENTION CHECK:", {
-    mentionedJid,
-    botLid,
-    botJidClean,
-    isBotMentioned
-});
+                    const msg =
+                        messages[0];
 
+                    if (!msg.message) {
+                        return;
+                    }
 
-if (!isBotMentioned) return;
-            /*
-            |--------------------------------------------------------------------------
-            | HARUS TAG BOT
-            |--------------------------------------------------------------------------
-            */
+                    const from =
+                        msg.key.remoteJid;
 
-            if (mentionedJid.length === 0) return;
-// Ambil JID bot sendiri
-const botJid = sock.user.id.replace(':0@', '@').replace(/:\d+/, '');
+                    /*
+                    |--------------------------------------------------------------------------
+                    | AMBIL TEXT
+                    |--------------------------------------------------------------------------
+                    */
 
-// Cek apakah bot yang di-tag
+                    const text =
+                        msg.message?.conversation ||
+                        msg.message?.extendedTextMessage?.text ||
+                        '';
 
-if (!isBotMentioned) return;
-            /*
-            |--------------------------------------------------------------------------
-            | DOWNLOAD EXCEL TERBARU SETIAP ADA CHAT
-            |--------------------------------------------------------------------------
-            */
+                    if (!text) {
+                        return;
+                    }
 
-            await downloadExcel();
+                    console.log(
+                        'PESAN MASUK:',
+                        text
+                    );
 
-            /*
-            |--------------------------------------------------------------------------
-            | HAPUS TAG BOT
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CEK MENTION
+                    |--------------------------------------------------------------------------
+                    */
 
-            const cleanText = text
-                .replace(/@\S+/g, '')
-                .trim();
+                    const mentionedJid =
+                        msg.message
+                            ?.extendedTextMessage
+                            ?.contextInfo
+                            ?.mentionedJid || [];
 
-            console.log('CLEAN TEXT:', cleanText);
+                    console.log(
+                        '=== DEBUG ==='
+                    );
 
-            /*
-            |--------------------------------------------------------------------------
-            | FORMAT:
-            | SKU-001 | Harga Open
-            |--------------------------------------------------------------------------
-            */
+                    console.log(
+                        'BOT JID:',
+                        sock.user?.id
+                    );
 
-            const splitText = cleanText.split('|');
+                    console.log(
+                        'BOT LID:',
+                        botLid
+                    );
 
-            if (splitText.length < 2) {
+                    console.log(
+                        'MENTIONED JID:',
+                        mentionedJid
+                    );
 
-                await sock.sendMessage(from, {
-                    text:
+                    console.log(
+                        '============='
+                    );
+
+                    const botJidClean =
+                        sock.user?.id
+                            ?.split(':')[0];
+
+                    const isBotMentioned =
+                        mentionedJid.some(
+                            jid => {
+
+                                const cleanJid =
+                                    jid
+                                        .split(':')[0]
+                                        .replace(
+                                            '@lid',
+                                            ''
+                                        )
+                                        .replace(
+                                            '@s.whatsapp.net',
+                                            ''
+                                        );
+
+                                return (
+                                    cleanJid === botLid ||
+                                    cleanJid === botJidClean
+                                );
+
+                            }
+                        );
+
+                    if (!isBotMentioned) {
+                        return;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DOWNLOAD EXCEL TERBARU
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const excel =
+                        await downloadExcel();
+
+                    if (!excel) {
+
+                        await sock.sendMessage(
+                            from,
+                            {
+                                text:
+                                    'File Excel terbaru gagal diambil 😭'
+                            },
+                            {
+                                quoted: msg
+                            }
+                        );
+
+                        return;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HAPUS TAG BOT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const cleanText =
+                        text
+                            .replace(
+                                /@\S+/g,
+                                ''
+                            )
+                            .trim();
+
+                    console.log(
+                        'CLEAN TEXT:',
+                        cleanText
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FORMAT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const splitText =
+                        cleanText.split('|');
+
+                    if (splitText.length < 2) {
+
+                        await sock.sendMessage(
+                            from,
+                            {
+                                text:
 `iyaa, mau tanya apaaa?
 
 Contoh perintah:
 - @bot SKU-001 | Harga Open
 - @bot SKU-001 | Harga Nett Chat
 - @bot SKU-001 | Harga Nett Toko`
-                }
-            ,{ quoted: msg });
-                
+                            },
+                            {
+                                quoted: msg
+                            }
+                        );
 
-                return;
-            }
+                        return;
+                    }
 
-            /*
-            |--------------------------------------------------------------------------
-            | SKU
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SKU
+                    |--------------------------------------------------------------------------
+                    */
 
-            const skuPart =
-                splitText[0]
-                .trim();
+                    const skuPart =
+                        splitText[0]
+                            .trim();
 
-            /*
-            |--------------------------------------------------------------------------
-            | JENIS HARGA
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | JENIS HARGA
+                    |--------------------------------------------------------------------------
+                    */
 
-            const jenisHarga =
-                splitText[1]
-                .trim()
-                .toLowerCase();
+                    const jenisHarga =
+                        splitText[1]
+                            .trim()
+                            .toLowerCase();
 
-            console.log('SKU:', skuPart);
-            console.log('JENIS:', jenisHarga);
+                    console.log(
+                        'SKU:',
+                        skuPart
+                    );
 
-            /*
-            |--------------------------------------------------------------------------
-            | LOAD EXCEL
-            |--------------------------------------------------------------------------
-            */
+                    console.log(
+                        'JENIS:',
+                        jenisHarga
+                    );
 
-            const latestExcel =
-    await downloadExcel();
+                    /*
+                    |--------------------------------------------------------------------------
+                    | LOAD EXCEL
+                    |--------------------------------------------------------------------------
+                    */
 
-if (!latestExcel) {
+                    const dataExcel =
+                        loadExcelData(
+                            excel
+                        );
 
-    await sock.sendMessage(from, {
-        text:
-            'File Excel terbaru gagal diambil 😭'
-    } ,{ quoted: msg });
+                    if (
+                        !dataExcel ||
+                        dataExcel.length === 0
+                    ) {
 
-    return;
-}
+                        await sock.sendMessage(
+                            from,
+                            {
+                                text:
+                                    'Data Excel kosong 😭'
+                            },
+                            {
+                                quoted: msg
+                            }
+                        );
 
-const dataExcel =
-    loadExcelData(latestExcel);
+                        return;
+                    }
 
-if (!dataExcel || dataExcel.length === 0) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CARI SKU
+                    |--------------------------------------------------------------------------
+                    */
 
-    await sock.sendMessage(from, {
-        text:
-            'Data Excel kosong 😭'
-    } ,{ quoted: msg });
+                    const cleanSku =
+                        value => {
 
-    return;
-}
-            /*
-            |--------------------------------------------------------------------------
-            | CARI SKU
-            |--------------------------------------------------------------------------
-            */
+                            return String(
+                                value || ''
+                            )
+                                .replace(
+                                    /[^\w]/g,
+                                    ''
+                                )
+                                .trim()
+                                .toUpperCase();
 
-            const laptop = dataExcel.find(item => {
+                        };
 
-    const skuKey = Object.keys(item)
-        .find(k =>
-            String(k)
-            .trim()
-            .toLowerCase() === 'sku'
-        );
+                    const laptop =
+                        dataExcel.find(
+                            item => {
 
-    if (!skuKey) return false;
+                                const skuKey =
+                                    Object.keys(item)
+                                        .find(
+                                            k =>
+                                                String(k)
+                                                    .trim()
+                                                    .toLowerCase() ===
+                                                'sku'
+                                        );
 
-    const cleanSku = (value) => {
-    return String(value || '')
-        .replace(/[^\w]/g, '')
-        .trim()
-        .toUpperCase();
-};
+                                if (!skuKey) {
+                                    return false;
+                                }
 
-const excelSku = cleanSku(item[skuKey]);
-const inputSku = cleanSku(skuPart);
+                                const excelSku =
+                                    cleanSku(
+                                        item[skuKey]
+                                    );
 
-    return excelSku === inputSku;
-});
-            /*
-            |--------------------------------------------------------------------------
-            | SKU TIDAK DITEMUKAN
-            |--------------------------------------------------------------------------
-            */
+                                const inputSku =
+                                    cleanSku(
+                                        skuPart
+                                    );
 
-            if (!laptop) {
+                                return (
+                                    excelSku ===
+                                    inputSku
+                                );
 
-    await sock.sendMessage(from, {
-        text: `SKU ${skuPart} tidak ditemukan 😭`
-    } ,{ quoted: msg });
+                            }
+                        );
 
-    return;
-}
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SKU TIDAK DITEMUKAN
+                    |--------------------------------------------------------------------------
+                    */
 
-const status =
-    String(laptop['Status'] || '')
-    .trim()
-    .toLowerCase();
-const statusText = laptop['Status'] || '-';
-if (
-    status.includes('sold') ||
-    status.includes('dp') ||
-    status.includes('not ready')
-) {
+                    if (!laptop) {
 
-    await sock.sendMessage(from, {
-        text:
+                        await sock.sendMessage(
+                            from,
+                            {
+                                text:
+                                    `SKU ${skuPart} tidak ditemukan 😭`
+                            },
+                            {
+                                quoted: msg
+                            }
+                        );
+
+                        return;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | STATUS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    const status =
+                        String(
+                            laptop['Status'] || ''
+                        )
+                            .trim()
+                            .toLowerCase();
+
+                    const statusText =
+                        laptop['Status'] || '-';
+
+                    if (
+                        status.includes('sold') ||
+                        status.includes('dp') ||
+                        status.includes('not ready')
+                    ) {
+
+                        await sock.sendMessage(
+                            from,
+                            {
+                                text:
 `❌ SKU ${skuPart} sudah ${status.toUpperCase()} ❌`
-    } ,{ quoted: msg });
+                            },
+                            {
+                                quoted: msg
+                            }
+                        );
 
-    return;
-}
-            /*
-            |--------------------------------------------------------------------------
-            | PILIH HARGA
-            |--------------------------------------------------------------------------
-            */
+                        return;
+                    }
 
-            let harga = null;
-            let label = '';
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PILIH HARGA
+                    |--------------------------------------------------------------------------
+                    */
 
-        if (jenisHarga === 'harga open') {
+                    let harga = null;
+                    let label = '';
 
-    const hargaKey = Object.keys(laptop)
-        .find(k =>
-            String(k)
-            .toLowerCase()
-            .includes('harga open')
-        );
+                    if (
+                        jenisHarga ===
+                        'harga open'
+                    ) {
 
-    harga = laptop[hargaKey];
-    label = 'Harga Open';
-}
+                        const hargaKey =
+                            Object.keys(laptop)
+                                .find(
+                                    k =>
+                                        String(k)
+                                            .toLowerCase()
+                                            .includes(
+                                                'harga open'
+                                            )
+                                );
 
-else if (jenisHarga === 'harga nett chat') {
+                        harga =
+                            hargaKey
+                                ? laptop[hargaKey]
+                                : null;
 
-    const hargaKey = Object.keys(laptop)
-        .find(k =>
-            String(k)
-            .toLowerCase()
-            .includes('nett chat')
-        );
+                        label =
+                            'Harga Open';
 
-    harga = laptop[hargaKey];
-    label = 'Harga Nett Chat';
-}
+                    }
 
-else if (jenisHarga === 'harga nett toko') {
+                    else if (
+                        jenisHarga ===
+                        'harga nett chat'
+                    ) {
 
-    const hargaKey = Object.keys(laptop)
-        .find(k =>
-            String(k)
-            .toLowerCase()
-            .includes('nett toko')
-        );
+                        const hargaKey =
+                            Object.keys(laptop)
+                                .find(
+                                    k =>
+                                        String(k)
+                                            .toLowerCase()
+                                            .includes(
+                                                'nett chat'
+                                            )
+                                );
 
-    harga = laptop[hargaKey];
-    label = 'Harga Nett Toko';
-}
+                        harga =
+                            hargaKey
+                                ? laptop[hargaKey]
+                                : null;
 
-            else {
+                        label =
+                            'Harga Nett Chat';
 
-                await sock.sendMessage(from, {
-                    text:
+                    }
+
+                    else if (
+                        jenisHarga ===
+                        'harga nett toko'
+                    ) {
+
+                        const hargaKey =
+                            Object.keys(laptop)
+                                .find(
+                                    k =>
+                                        String(k)
+                                            .toLowerCase()
+                                            .includes(
+                                                'nett toko'
+                                            )
+                                );
+
+                        harga =
+                            hargaKey
+                                ? laptop[hargaKey]
+                                : null;
+
+                        label =
+                            'Harga Nett Toko';
+
+                    }
+
+                    else {
+
+                        await sock.sendMessage(
+                            from,
+                            {
+                                text:
 `Jenis harga tidak valid 😭
 
 Pilihan:
 - Harga Open
 - Harga Nett Chat
 - Harga Nett Toko`
-                } ,{ quoted: msg });
+                            },
+                            {
+                                quoted: msg
+                            }
+                        );
 
-                return;
-            }
+                        return;
+                    }
 
-            /*
-            |--------------------------------------------------------------------------
-            | FORMAT HARGA
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FORMAT HARGA
+                    |--------------------------------------------------------------------------
+                    */
 
-            const hargaNumber =
-    parseInt(
-        String(harga)
-        .replace(/[^\d]/g, '')
-    ) || 0;
+                    const hargaNumber =
+                        parseInt(
+                            String(
+                                harga
+                            )
+                                .replace(
+                                    /[^\d]/g,
+                                    ''
+                                )
+                        ) || 0;
 
-const formatHarga =
-    new Intl.NumberFormat('id-ID')
-    .format(hargaNumber);
-            /*
-            |--------------------------------------------------------------------------
-            | RESPON BOT
-            |--------------------------------------------------------------------------
-            */
+                    const formatHarga =
+                        new Intl
+                            .NumberFormat(
+                                'id-ID'
+                            )
+                            .format(
+                                hargaNumber
+                            );
 
-            await sock.sendMessage(from, {
-                text:
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RESPON BOT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    await sock.sendMessage(
+                        from,
+                        {
+                            text:
 `💻 ${laptop['Unit dan Spesifikasi'] || '-'}
 
 📦 SKU: ${laptop['SKU'] || '-'}
+
 💰 ${label}
 Rp ${formatHarga}
 
 📌 Status: ${statusText}
+
 🛠 Kondisi: ${laptop['Kondisi'] || '-'}`
-            } ,{ quoted: msg });
+                        },
+                        {
+                            quoted: msg
+                        }
+                    );
 
-        } catch (err) {
+                } catch (err) {
 
-            console.log('ERROR:', err);
+                    console.log(
+                        'ERROR:',
+                        err
+                    );
 
-        }
+                }
 
-    });
+            }
+        );
+
+    } catch (err) {
+
+        console.log(
+            'START BOT ERROR:',
+            err
+        );
+
+        setTimeout(() => {
+
+            startBot();
+
+        }, 5000);
+
+    }
+
 }
 
 /*
@@ -706,15 +986,55 @@ startBot();
 |--------------------------------------------------------------------------
 */
 
-app.get('/qr', async (req, res) => {
+app.get(
+    '/qr',
+    async (req, res) => {
 
-    return res.json({
-        success: true,
-        data: {
-            qr: qrData
+        return res.json({
+
+            success: true,
+
+            data: {
+
+                qr: qrData
+
+            }
+
+        });
+
+    }
+);
+
+/*
+|--------------------------------------------------------------------------
+| QR RAW
+|--------------------------------------------------------------------------
+*/
+
+app.get(
+    '/qrraw',
+    async (req, res) => {
+
+        try {
+
+            const qr =
+                fs.readFileSync(
+                    './qr.txt',
+                    'utf8'
+                );
+
+            res.send(qr);
+
+        } catch {
+
+            res.send(
+                'QR belum ada'
+            );
+
         }
-    });
-});
+
+    }
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -722,15 +1042,24 @@ app.get('/qr', async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post('/api/sessions/add', async (req, res) => {
+app.post(
+    '/api/sessions/add',
+    async (req, res) => {
 
-    return res.json({
-        success: true,
-        data: {
-            qr: qrData
-        }
-    });
-});
+        return res.json({
+
+            success: true,
+
+            data: {
+
+                qr: qrData
+
+            }
+
+        });
+
+    }
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -738,28 +1067,46 @@ app.post('/api/sessions/add', async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.get('/api/sessions/status/:code', async (req, res) => {
+app.get(
+    '/api/sessions/status/:code',
+    async (req, res) => {
 
-    try {
+        try {
 
-        const isConnected =
-            sock?.user ? true : false;
+            const isConnected =
+                sock?.user
+                    ? true
+                    : false;
 
-        return res.json({
-            success: true,
-            data: {
-                connected: isConnected,
-                device_number: sock?.user?.id || null
-            }
-        });
+            return res.json({
 
-    } catch (err) {
+                success: true,
 
-        return res.json({
-            success: false
-        });
+                data: {
+
+                    connected:
+                        isConnected,
+
+                    device_number:
+                        sock?.user?.id ||
+                        null
+
+                }
+
+            });
+
+        } catch (err) {
+
+            return res.json({
+
+                success: false
+
+            });
+
+        }
+
     }
-});
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -767,9 +1114,18 @@ app.get('/api/sessions/status/:code', async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+    process.env.PORT || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(
+    PORT,
+    '0.0.0.0',
+    () => {
 
-    console.log('Server running on port ' + PORT);
-});
+        console.log(
+            'Server running on port ' +
+            PORT
+        );
+
+    }
+);
