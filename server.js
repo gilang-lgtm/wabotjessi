@@ -18,7 +18,8 @@ app.use(express.json());
 
 let qrData = null;
 let sock = null;
-let botLid = null;
+let botLid = process.env.BOT_LID || null; // bisa diisi manual lewat env BOT_LID
+let authState = null;
 
 /* ------------------------------------------------------------------
  | CONFIG
@@ -162,6 +163,38 @@ function reply(from, msg, text) {
     return sock.sendMessage(from, { text }, { quoted: msg });
 }
 
+const cleanJidValue = jid => String(jid).split(':')[0].split('@')[0];
+
+/*
+ | Cari LID bot. Setelah pairing ulang, user.lid kadang belum ada saat
+ | koneksi "open", jadi dicek lagi tiap creds.update dan tiap ada pesan.
+ */
+async function resolveBotLid() {
+    try {
+        const direct = sock?.user?.lid || authState?.creds?.me?.lid;
+
+        if (direct) {
+            botLid = cleanJidValue(direct);
+            return botLid;
+        }
+
+        // Baileys v7: cari lewat pemetaan nomor -> LID
+        const pn = sock?.user?.id;
+
+        if (pn) {
+            const mapped = await sock?.signalRepository?.lidMapping?.getLIDForPN?.(pn);
+
+            if (mapped) {
+                botLid = cleanJidValue(mapped);
+            }
+        }
+    } catch (err) {
+        console.log('GAGAL AMBIL BOT LID:', err.message);
+    }
+
+    return botLid;
+}
+
 /* ------------------------------------------------------------------
  | MESSAGE HANDLER
  ------------------------------------------------------------------ */
@@ -190,6 +223,8 @@ async function handleMessage(msg) {
         msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
 
     const botJidClean = sock.user?.id?.split(':')[0];
+
+    await resolveBotLid();
 
     console.log('=== DEBUG ===');
     console.log('BOT JID:', sock.user?.id);
@@ -357,6 +392,7 @@ function scheduleReconnect(delay = 5000) {
 async function startBot() {
     try {
         const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+        authState = state;
 
         // Pakai versi WhatsApp Web terbaru supaya tidak ditolak (error 405)
         const { version } = await fetchLatestBaileysVersion();
@@ -375,7 +411,10 @@ async function startBot() {
         sock = currentSock;
 
         // Simpan sesi
-        currentSock.ev.on('creds.update', saveCreds);
+        currentSock.ev.on('creds.update', async () => {
+            await saveCreds();
+            await resolveBotLid();
+        });
 
         // Status koneksi
         currentSock.ev.on('connection.update', async (update) => {
@@ -402,10 +441,8 @@ async function startBot() {
 
                 qrData = null; // QR tidak diperlukan lagi
 
-                if (currentSock.user?.lid) {
-                    botLid = currentSock.user.lid.split(':')[0];
-                    console.log('BOT LID:', botLid);
-                }
+                await resolveBotLid();
+                console.log('BOT LID:', botLid);
 
                 await downloadExcel();
             }
